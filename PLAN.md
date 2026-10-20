@@ -14,7 +14,7 @@
 - CLI：`python -m ocrmath {pack,build,list,validate,add,ocr}`；`pack` 一次出三份并写 `out/<name>/manifest.json`。
 - OCR：`ingest/local.py`（pix2tex 公式级）+ `ingest/cloud.py`（占位）。pix2tex 模型权重已下载到 `.venv/Lib/site-packages/pix2tex/model/checkpoints`，离线可用。
 - 质量：`python -m ocrmath validate --strict` 0 错 0 警；`python -m unittest discover -s tests` **67 个测试全过**；`pack --strict` 编译通过（student 2 页 / answers 3 页 / teacher 4 页）。
-- 审计修复（2026-10-20）：`AUDIT.md` 里 14 条问题 + 1 条工程补充已全部处理，逐条对照见 `AUDIT.md` 第一之二节和第九节。**还剩「CI」一项没做**（要先定托管平台）。
+- 审计修复（2026-10-20）：`AUDIT.md` 里 14 条问题 + 1 条工程补充已全部处理，逐条对照见 `AUDIT.md` 第一之二节和第九节。CI 也已落地（同日），审计项全部清零。
 
 ## 关键设计决定（别改回去）
 
@@ -47,7 +47,7 @@ python .tmp\preview.py out\demo\student.pdf out\preview\demo-student   # PDF →
 4. **答题横线 / 网格**：学生卷可选 `--ruled` 或每题 `answer_lines: 3`，对应模板里画 `\dotfill` 或方格。
 5. **答案册单独装订**：`pack` 加 `--booklet`，answers 用 A5 或双栏、可对折。
 6. **题库导入**：从 Markdown/Word 粘贴格式批量转 YAML（比 OCR 更实用，因为题源是老师自己找的）。
-7. **CI**：GitHub Actions 里跑 `validate` + `unittest`（不装 TeX，编译测试放本地）。这是审计遗留的**唯一**未完成项，要先定托管平台。
+7. ~~**CI**~~ ✅ 已完成（2026-10-20）：`.github/workflows/quick.yml`（push/PR，不装 TeX）+ `latex.yml`（每日 02:00 + 手动，真编 PDF）。本地复现用 `python scripts/gate.py fast|slow|all`。**遗留风险**：`latex.yml` 的 Debian TeX 包清单是按经验推的，还没在 GitHub 上实跑过，第一次夜间跑可能缺包——手动 `workflow_dispatch` 一次确认，失败时 workflow 会上传 `out/.build/**/main.log`。
 
 > 加新字段/新参数的顺序（踩过坑）：改 `Problem` → 改 `validate` → 改模板 → 在 `TEMPLATE_OPTIONS` 登记该参数归哪个模板 → 补 `tests/` → 跑 `validate --strict` 与全模板 `build`。漏掉 `TEMPLATE_OPTIONS` 那步，新参数就会静默无效（这正是审计问题 8）。
 

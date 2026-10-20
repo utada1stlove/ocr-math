@@ -303,7 +303,7 @@ $ python -m ocrmath build
 | 13 | `scripts/preview_pdf.py` | 从不 `doc.close()`（轻微泄漏） |
 | 14 | `src/ocrmath/ingest/local.py:23` vs `README.md:46` / `pyproject.toml:14` | 权重体积写 70MB vs 116MB，数字不一致 |
 
-另有：无 CI；无 `.gitattributes`（Windows 上 `*.yaml` 换行符易漂）。
+另有：无 CI；无 `.gitattributes`（Windows 上 `*.yaml` 换行符易漂）。—— **两项均已补**：`.gitattributes` 见台账；CI 见台账与第九节 9.1。
 
 **明确不算缺陷、不在本轮范围**：`ingest/cloud.py:34-35` 的 `NotImplementedError`（`PLAN.md` 中的待办特性）；插图支持（尚无 `graphicx`）；9 道题本身的数学正确性。
 
