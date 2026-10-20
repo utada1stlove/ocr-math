@@ -42,7 +42,7 @@ tests/fixtures/figures/     插图 fixture（1x1 PNG，验 \includegraphics 链�
 
 ## 变更记录
 
-`CHANGELOG.md` 按批次记「改了什么、为什么、怎么验的」；`AUDIT.md` 是那次审计的问题台账与验收证据；`PLAN.md` 是下一步做什么的索引。
+四份文档分工：`TODO.md` 是待办清单（含只能人工做的阻塞项）；`CHANGELOG.md` 按批次记「改了什么、为什么、怎么验的」；`AUDIT.md` 是那次审计的问题台账与验收证据；`PLAN.md` 是设计与状态的索引。
 
 本地复现 CI 全部门槛：`python scripts/gate.py all`（等价于 `fast` + `slow` 两档）。
 
