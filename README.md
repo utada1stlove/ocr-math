@@ -36,7 +36,15 @@ src/ocrmath/                代码
 scripts/preview_pdf.py      PDF 每页渲染成 PNG，方便肉眼检查
 scripts/build.ps1           Windows 包装脚本（自动设 PYTHONPATH/临时目录）
 out/                        产物（PDF / .tex / .build 中间文件，已被 git 忽略）
+tests/fixtures/coverage/    覆盖性题库（多小问/表格/超长解析，守住渲染不炸）
+tests/fixtures/figures/     插图 fixture（1x1 PNG，验 \includegraphics 链路）
 ```
+
+## 变更记录
+
+`CHANGELOG.md` 按批次记「改了什么、为什么、怎么验的」；`AUDIT.md` 是那次审计的问题台账与验收证据；`PLAN.md` 是下一步做什么的索引。
+
+本地复现 CI 全部门槛：`python scripts/gate.py all`（等价于 `fast` + `slow` 两档）。
 
 ## 环境要求
 
