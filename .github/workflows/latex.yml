@@ -37,8 +37,11 @@ jobs:
       - name: 安装 TeX Live（xelatex + ctex + latexmk）
         run: |
           sudo apt-get update
+          # texlive-pictures 单独装：tcolorbox 的 skins 库要 pgf/tikz，
+          # 而 Debian 的 texlive-latex-extra 不依赖它（包粒度粗，容易漏）
           sudo apt-get install -y --no-install-recommends \
-            latexmk texlive-xetex texlive-lang-chinese texlive-latex-extra
+            latexmk texlive-xetex texlive-lang-chinese texlive-latex-extra \
+            texlive-pictures
           # 字体：ctex 默认会找这些，缺了就是满屏 Missing character
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
           fc-cache -fv
