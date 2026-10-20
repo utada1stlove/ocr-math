@@ -114,6 +114,8 @@ python scripts/preview_pdf.py out/demo/student.pdf
 | `workspace_mm` | 草稿留白高度（mm），`0` 表示不留白；`student` 模板会忽略它 | 留白 |
 | `source` | 来源 | 来源 |
 | `title` | 题目标题（可选，页面上不显示，仅方便检索） | 标题 |
+| `figures` | 插图路径列表，**相对 `data/`**（如 `figs/cube.png`） | 图 / 插图 / 图片 |
+| `figure_width` | 插图占正文宽度比例，0.1–1.0，默认 0.6 | 图宽 |
 
 示例（详解题）：
 
@@ -144,7 +146,7 @@ python -m ocrmath validate --strict  # 警告也算失败
 python -m ocrmath pack --strict ...  # 缺答案/解析就不打包
 ```
 
-校验会查：id 合法且不重复、题干非空、选择题至少 2 个选项、难度 1–5、留白 0–250mm、`{}` 配对、`$` 成对、未转义的 `%`（这些都会让 LaTeX 编译失败或悄悄吃掉半行字），以及 `steps`/`pitfalls`/`hint`/`teaching` 的空项与公式配对。`answer` 与题干同等对待——答案里的 `%`、奇数个 `$` 一样会被查出来（以前只查题干，答案写错要到编译时才炸）。
+校验会查：id 合法且不重复、题干非空、选择题至少 2 个选项、难度 1–5、留白 0–250mm、插图宽度比例 0.1–1.0、插图文件存在、`{}` 配对、数学公式的定界符成对、未转义的 `%` / `&` / `#` / 数学模式外的下划线（这些都会让 LaTeX 编译失败或悄悄吃掉半行字），以及 `steps`/`pitfalls`/`hint`/`teaching` 的空项与公式配对。`answer` 与题干同等对待——答案里的 `%`、奇数个 `$` 一样会被查出来（以前只查题干，答案写错要到编译时才炸）。
 
 ```powershell
 python -m unittest discover -s tests -v
@@ -219,9 +221,30 @@ OCRMATH_OCR_MODEL=...
 
 后把 `recognize()` 换成你的服务商调用（多模态模型直接返回 `{"problems": [...]}` 结构化 JSON）。注意图片会离开本机。
 
+## 插图
+
+需要配图的题（立体几何、函数图像、统计图表），把图片放进 `data/figs/`，
+然后在题目的 `figures` 里写**相对 `data/`** 的路径：
+
+```yaml
+- id: geo-003
+  statement: 如图，在正方体中，求异面直线所成的角。
+  figures: [figs/cube.png]
+  figure_width: 0.45
+  answer: 90 度
+  tags: [空间向量]
+  difficulty: 3
+```
+
+- 支持 png / jpg / pdf（`graphicx` 能读的都行）；`figure_width` 是占正文宽度的比例，默认 0.6。
+- 编译前图片会被**拷进 `out/.build/<名字>/`**，`main.tex` 里只写文件名。所以构建目录是自包含的，换目录重编不会因为绝对路径炸掉。
+- 高度按原图比例（`keepaspectratio`）。估算 `\needspace` 时按「正文宽 × 比例」当正方形算，偏保守——宁可多留白，也不让图被切到下一页。
+- `validate` 会检查文件是否存在；`build` 遇到缺图直接失败并指名是哪个文件，不用对着 LaTeX 的 File not found 猜。
+- 答案册（`answers`）默认不重复题干，所以也不显示插图；`--echo` 开了才会带上。
+
 ## 注意
 
-- 题干里的 `%`、`#`、`&`、`_` 都是 LaTeX 特殊字符，需要转义（`\%`、`\#` 等），`validate` 会提示 `%` 的问题。
+- 题干里的 `%`、`#`、`&`、`_` 都是 LaTeX 特殊字符，需要转义（`\%`、`\#`、`\&`、`\_`），数学模式外的下划线直接写会报 Missing $。`validate` 现在四种都会提示，并且认得 `tabular`/`matrix` 里的 `&` 与 `cases`/数学环境里的下划线，不会误报。
 - 模板里 `\noindent` 这类控制词后面紧跟中文会被当成更长的控制序列（`\noindent已知` 直接报 Undefined control sequence），所以 `\noindent` 后要留一个空格；改模板时留意这一点。
 - 中文字体走 `ctexart` 默认（Windows 上是宋体/黑体），需要别的字体加 `fontset=` 选项即可。
 - 详解里一条 `steps` 不要太长（两三行以内），跨页时更容易保持「一步一段」的阅读节奏。

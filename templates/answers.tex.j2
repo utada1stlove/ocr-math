@@ -1,4 +1,5 @@
 {% include "_preamble.tex.j2" %}
+{% import "_figures.tex.j2" as fig %}
 \begin{document}
 
 {% if cfg.title %}
@@ -29,6 +30,7 @@
 
 {% if cfg.echo_statement %}
 {\small\color{gray}{{ p.statement }}}\par
+{{ fig.figures(p) }}
 \vspace{1.5mm}
 {% endif %}
 

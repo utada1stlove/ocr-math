@@ -1,0 +1,24 @@
+# 插图 fixture：证明含图题在五套模板里真的能编译通过。
+# 图是 1x1 PNG，只为验证 \includegraphics 的宽度/路径/拷贝链路，不关心内容。
+problems:
+  - id: fig-a
+    title: 单图
+    statement: 如图，在正方体 $ABCD-A_{1}B_{1}C_{1}D_{1}$ 中，求异面直线 $AC$ 与 $BD_{1}$ 所成角。
+    figures: [figs/demo.png]
+    figure_width: 0.45
+    answer: $90^{\circ}$
+    solution: 建系得两方向向量数量积为 $0$，故所成角为 $90^{\circ}$。
+    tags: [空间向量]
+    difficulty: 3
+    workspace_mm: 40
+
+  - id: fig-b
+    title: 两图
+    statement: 观察下列两幅图，判断哪一幅是导函数的图像。
+    figures:
+      - figs/demo.png
+      - figs/demo.png
+    answer: 第一幅
+    solution: 由单调性判断。
+    tags: [函数性质]
+    difficulty: 4

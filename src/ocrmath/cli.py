@@ -19,7 +19,7 @@ import yaml
 from .build import BuildResult, build
 from .ingest import get_engine
 from .render import RenderConfig, render
-from .schema import Problem
+from .schema import Issue, Problem
 from .select import SelectOptions, select_problems
 from .store import Taxonomy, append_problem, load_problems, problem_files
 
@@ -123,7 +123,28 @@ def _load(root: Path) -> tuple[Taxonomy, list[Problem], list]:
     problems, issues = load_problems(files)
     for problem in problems:
         issues.extend(problem.validate(taxonomy.known_tags))
+        issues.extend(_figure_issues(root, problem))
     return taxonomy, problems, issues
+
+
+def _figure_issues(root: Path, problem: Problem) -> list[Issue]:
+    """检查插图文件是否真的存在。
+
+    放在这里而不是 ``Problem.validate``：校验器不该碰文件系统（测试里构造 Problem 时
+    不该因为磁盘上没图就失败），只有真正要知道 ``data/`` 在哪的调用方才查。
+    """
+    issues: list[Issue] = []
+    for figure in problem.figures:
+        if not (root / "data" / figure).is_file():
+            issues.append(
+                Issue(
+                    "error",
+                    f"找不到插图文件 data/{figure}",
+                    problem.id,
+                    "figures",
+                )
+            )
+    return issues
 
 
 def _report(issues, *, fail: bool = True) -> bool:
@@ -172,7 +193,8 @@ def _config(
 
 def _compile(root: Path, chosen: list[Problem], taxonomy: Taxonomy, cfg: RenderConfig, out_pdf: Path) -> BuildResult:
     tex = render(chosen, taxonomy, cfg, root / "templates")
-    result = build(tex, out_pdf, root / "out" / ".build" / out_pdf.stem)
+    figures = [root / "data" / name for problem in chosen for name in problem.figures]
+    result = build(tex, out_pdf, root / "out" / ".build" / out_pdf.stem, figures=figures)
     if result.ok:
         print(f"PDF   {out_pdf}（{result.pages} 页，{len(chosen)} 题）")
     return result

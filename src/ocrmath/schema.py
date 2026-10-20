@@ -24,6 +24,8 @@ _FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "workspace_mm": ("workspace_mm", "留白"),
     "source": ("source", "来源"),
     "title": ("title", "标题"),
+    "figures": ("figures", "figure", "images", "图", "插图", "图片"),
+    "figure_width": ("figure_width", "图宽"),
     # 详解与教师用字段
     "steps": ("steps", "分步", "步骤", "解析步骤"),
     "pitfalls": ("pitfalls", "易错点", "易错"),
@@ -55,16 +57,47 @@ _LIST_SEP = r"[,;，；\n]"
 _KNOWN_KEYS: frozenset[str] = frozenset(key for aliases in _FIELD_ALIASES.values() for key in aliases)
 
 
-def _as_list(value: Any, sep: str = r"[;,；\n]") -> list[str]:
+def _as_list(value: Any, sep: str = r"[;,；\n]", *, split_items: bool = False) -> list[str]:
+    """把 YAML 值规整成字符串列表。
+
+    ``split_items`` 为真时，列表里的每个元素也会再按 ``sep`` 切分。
+    这是为 ``tags`` / ``pitfalls`` 准备的：手写 YAML 时 ``tags: [函数性质，导数应用]``
+    里的全角逗号是笔误而非内容，不切就会得到「知识点「函数性质，导数应用」不在词表中」
+    这种莫名其妙的警告。``choices`` 绝不能开这个开关——``A. 1，2`` 里的全角逗号
+    属于选项内容，切开会把一个选项拆成两个。
+    """
     if value is None:
         return []
     if isinstance(value, str):
         parts = re.split(sep, value)
         return [p.strip() for p in parts if p.strip()]
     if isinstance(value, (list, tuple)):
-        return [str(v).strip() for v in value if str(v).strip()]
+        items: list[str] = []
+        for raw in value:
+            text = str(raw).strip()
+            if not text:
+                continue
+            if split_items:
+                items.extend(part.strip() for part in re.split(sep, text) if part.strip())
+            else:
+                items.append(text)
+        return items
     raise TypeError(f"无法解析为列表: {value!r}")
 
+
+_FIGURE_WIDTH_MIN = 0.1
+_FIGURE_WIDTH_MAX = 1.0
+_FIGURE_WIDTH_DEFAULT = 0.6
+
+
+def _figure_width(value: Any) -> float:
+    """插图宽度比例。留空或非法值一律回落默认值，范围在 validate 里查。"""
+    if value in (None, ""):
+        return _FIGURE_WIDTH_DEFAULT
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return _FIGURE_WIDTH_DEFAULT
 
 def _pick(data: dict[str, Any], field_name: str) -> Any:
     for key in _FIELD_ALIASES[field_name]:
@@ -85,6 +118,11 @@ class Problem:
     workspace_mm: float | None = None
     source: str = ""
     title: str = ""
+    # 插图：相对 <root>/data/ 的路径列表（如 figs/cube.png）。渲染时会拷进构建目录，
+    # 这样 main.tex 里只有相对路径，不依赖本机的绝对路径写法。
+    figures: list[str] = field(default_factory=list)
+    # 插图占正文宽度的比例（0.1–1.0）
+    figure_width: float = 0.6
     # 详解 / 教师用：steps 是分步推导，pitfalls 是易错点，hint 是思路提示，teaching 是讲评建议
     steps: list[str] = field(default_factory=list)
     pitfalls: list[str] = field(default_factory=list)
@@ -116,13 +154,15 @@ class Problem:
             choices=_as_list(_pick(data, "choices")),
             answer=str(_pick(data, "answer") or "").strip(),
             solution=str(_pick(data, "solution") or "").strip(),
-            tags=_as_list(_pick(data, "tags"), sep=_LIST_SEP),
+            tags=_as_list(_pick(data, "tags"), sep=_LIST_SEP, split_items=True),
             difficulty=difficulty,
             workspace_mm=workspace,
             source=str(_pick(data, "source") or "").strip(),
             title=str(_pick(data, "title") or "").strip(),
+            figures=_as_list(_pick(data, "figures")),
+            figure_width=_figure_width(_pick(data, "figure_width")),
             steps=_as_list(_pick(data, "steps"), sep=r"\n"),
-            pitfalls=_as_list(_pick(data, "pitfalls"), sep=_LIST_SEP),
+            pitfalls=_as_list(_pick(data, "pitfalls"), sep=_LIST_SEP, split_items=True),
             hint=str(_pick(data, "hint") or "").strip(),
             teaching=str(_pick(data, "teaching") or "").strip(),
             extra=extra,
@@ -145,6 +185,10 @@ class Problem:
             out["source"] = self.source
         if self.title:
             out["title"] = self.title
+        if self.figures:
+            out["figures"] = list(self.figures)
+            if self.figure_width != 0.6:
+                out["figure_width"] = self.figure_width
         if self.steps:
             out["steps"] = list(self.steps)
         if self.pitfalls:
@@ -177,6 +221,15 @@ class Problem:
             add("error", "difficulty", f"难度必须是 1–5，当前 {self.difficulty}")
         if self.workspace_mm is not None and not 0 <= self.workspace_mm <= 250:
             add("error", "workspace_mm", "留白高度应在 0–250mm 之间")
+        if not _FIGURE_WIDTH_MIN <= self.figure_width <= _FIGURE_WIDTH_MAX:
+            add(
+                "error",
+                "figure_width",
+                f"插图宽度比例应在 {_FIGURE_WIDTH_MIN}–{_FIGURE_WIDTH_MAX} 之间，当前 {self.figure_width}",
+            )
+        for idx, figure in enumerate(self.figures, 1):
+            if not figure.strip():
+                add("error", f"figures[{idx}]", "插图路径为空")
 
         if known_tags is not None:
             for tag in self.tags:
@@ -208,28 +261,108 @@ class Problem:
         return issues
 
 
+# 环境跟踪：判断 & 与 _ 在当前上下文里是否合法。
+# 表格/对齐环境里的 & 是列分隔符；数学环境里的 _ 是下标。
+_MATH_ENVS: frozenset[str] = frozenset(
+    {
+        "equation", "equation*", "align", "align*", "aligned", "gather", "gather*",
+        "cases", "array", "matrix", "pmatrix", "bmatrix", "vmatrix", "Vmatrix",
+        "smallmatrix", "split", "multline", "multline*", "eqnarray", "eqnarray*",
+        "math", "displaymath",
+    }
+)
+_ALIGN_ENVS: frozenset[str] = _MATH_ENVS | frozenset(
+    {"tabular", "tabular*", "tabularx", "tabulary", "longtable"}
+)
+_BEGIN_ENV_RE = re.compile(r"\\begin\{([^}]*)\}")
+_END_ENV_RE = re.compile(r"\\end\{([^}]*)\}")
+
+
+def _in_math_env(env_stack: list[str]) -> bool:
+    return any(name in _MATH_ENVS for name in env_stack)
+
+
+def _in_alignment_env(env_stack: list[str]) -> bool:
+    return any(name in _ALIGN_ENVS for name in env_stack)
+
 def _latex_issues(text: str, problem_id: str, field_name: str = "statement") -> list[Issue]:
-    """便宜的 LaTeX 片段体检：括号/公式符号是否配对、百分号是否转义。"""
+    r"""便宜的 LaTeX 片段体检。
+
+    只报「一编译就炸 / 悄悄吃掉半行字」的硬伤，不求完备：
+
+    * ``{}`` 不配对
+    * ``$`` 数量为奇数
+    * 未转义的 ``%``（会被当注释，静默吞掉后半行）
+    * 未转义的 ``&``（表格外报 Misplaced alignment tab character）
+    * 未转义的 ``#``（报 macro parameter character）
+    * 数学模式外的 ``_``（报 Missing $ inserted）
+
+    扫描时跳过被反斜杠转义的字符，并跟踪 ``$...$``、``\(...\)``、``\[...\]`` 与
+    ``\\begin{...}...\\end{...}``。表格/矩阵环境里的 ``&`` 是列分隔符，
+    数学环境里的 ``_`` 是下标，这两类都不告警。
+    """
     issues: list[Issue] = []
     depth = 0
     dollars = 0
+    in_math = False
+    env_stack: list[str] = []
     i = 0
     while i < len(text):
         ch = text[i]
         if ch == "\\":
-            i += 2  # 跳过被转义的字符
+            begin = _BEGIN_ENV_RE.match(text, i)
+            if begin:
+                env_stack.append(begin.group(1).strip())
+                i = begin.end()
+                continue
+            end = _END_ENV_RE.match(text, i)
+            if end:
+                name = end.group(1).strip()
+                if name in env_stack:
+                    env_stack.remove(name)
+                i = end.end()
+                continue
+            pair = text[i : i + 2]
+            if pair in ("\\(", "\\["):
+                in_math = True
+            elif pair in ("\\)", "\\]"):
+                in_math = False
+            i += 2
             continue
         if ch == "{":
             depth += 1
         elif ch == "}":
             depth -= 1
             if depth < 0:
-                break
+                depth = 0
         elif ch == "$":
             dollars += 1
+            in_math = not in_math
         elif ch == "%":
             issues.append(
-                Issue("warning", "正文中的 % 未转义，会被 LaTeX 当成注释（写成 \\%）", problem_id, field_name)
+                Issue("warning", r"正文中的 % 未转义，会被 LaTeX 当成注释（写成 \%）", problem_id, field_name)
+            )
+        elif ch == "&" and not in_math and not _in_alignment_env(env_stack):
+            issues.append(
+                Issue(
+                    "warning",
+                    r"正文中的 & 未转义（表格外会被当成对齐符；写成 \&）",
+                    problem_id,
+                    field_name,
+                )
+            )
+        elif ch == "#":
+            issues.append(
+                Issue("warning", r"正文中的 # 未转义（写成 \#）", problem_id, field_name)
+            )
+        elif ch == "_" and not in_math and not _in_math_env(env_stack):
+            issues.append(
+                Issue(
+                    "warning",
+                    r"数学模式外的 _ 未转义（下标要写进 $...$，或转义成 \_）",
+                    problem_id,
+                    field_name,
+                )
             )
         i += 1
     if depth != 0:

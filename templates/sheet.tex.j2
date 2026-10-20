@@ -1,4 +1,5 @@
 {% include "_preamble.tex.j2" %}
+{% import "_figures.tex.j2" as fig %}
 \begin{document}
 
 {% if cfg.title %}
@@ -27,6 +28,7 @@
 \needspace{ {{- (p.workspace_mm * 0.35 + 28)|int }}mm}
 \noindent\textbf{ {{- p.number }}.}~{{ p.statement }}\par
 
+{{ fig.figures(p) }}
 {% if p.choices %}
 \begin{enumerate}[label=\Alph*., leftmargin=2.4em]
 {% for c in p.choices %}

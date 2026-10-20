@@ -1,4 +1,5 @@
 {% include "_preamble.tex.j2" %}
+{% import "_figures.tex.j2" as fig %}
 \begin{document}
 \pagestyle{fancy}
 \fancyfoot[C]{\small 教师版 · 第 \thepage 页}
@@ -30,6 +31,8 @@
 \vspace{1.5mm}
 
 \noindent {{ p.statement }}\par
+
+{{ fig.figures(p) }}
 {% if p.choices %}
 \begin{enumerate}[label=\Alph*., leftmargin=2.4em, itemsep=0.8mm, topsep=0.8mm]
 {% for c in p.choices %}

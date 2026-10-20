@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
+from collections.abc import Iterable
 from pathlib import Path
 
 _TEX_ERROR = re.compile(r"^(.+?\.tex):(\d+):\s*(.+)$")
@@ -22,7 +23,13 @@ class BuildResult:
     log_tail: str = ""
 
 
-def build(tex: str, out_pdf: Path, build_dir: Path, timeout: int = 300) -> BuildResult:
+def build(
+    tex: str,
+    out_pdf: Path,
+    build_dir: Path,
+    timeout: int = 300,
+    figures: Iterable[Path] = (),
+) -> BuildResult:
     latexmk = shutil.which("latexmk")
     if not latexmk:
         return BuildResult(
@@ -33,6 +40,21 @@ def build(tex: str, out_pdf: Path, build_dir: Path, timeout: int = 300) -> Build
     build_dir.mkdir(parents=True, exist_ok=True)
     tex_path = build_dir / "main.tex"
     tex_path.write_text(tex, encoding="utf-8")
+
+    # 插图拷进构建目录：latexmk 在 build_dir 里跑，main.tex 里只写文件名。
+    # 缺图直接判失败，否则 LaTeX 会以「File not found」停在一堆无关的报错里。
+    missing: list[str] = []
+    for source in figures:
+        if not source.exists():
+            missing.append(str(source))
+            continue
+        shutil.copyfile(source, build_dir / source.name)
+    if missing:
+        return BuildResult(
+            ok=False,
+            tex=tex_path,
+            errors=["找不到插图：" + "、".join(missing)],
+        )
 
     command = [
         latexmk,

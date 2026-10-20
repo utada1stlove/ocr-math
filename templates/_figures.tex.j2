@@ -1,0 +1,11 @@
+{% macro figure(fig, width) %}
+\begin{center}
+\includegraphics[width={{ '%.2f'|format(width) }}\linewidth,keepaspectratio]{ {{- fig }}}
+\end{center}
+{% endmacro %}
+
+{% macro figures(item) %}
+{% for fig in item.figures %}
+{{ figure(fig, item.figure_width) }}
+{% endfor %}
+{% endmacro %}

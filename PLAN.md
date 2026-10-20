@@ -6,14 +6,14 @@
 
 把数学题（自己找的题 / 自己出的题）存成 YAML 题库，一键生成**学生卷 / 答案详解 / 教师版**三份 PDF，版式可调、题号一致，不需要重复排版。
 
-## 当前状态：M1 已完成，可以日常用了；M1.5 审计修复已完成
+## 当前状态：M1 已完成；M1.5 审计修复与 CI 已完成；M2 起（能力补强）进行中
 
-- 数据层：`data/problems/*.yaml`（9 道示例题：fx-001/002/003、tri-001、seq-001、geo-001/002、prob-001、ineq-001），字段 `statement/choices/answer/solution/steps/pitfalls/hint/teaching/tags/difficulty/workspace_mm/source`，中英文键名都认；另有 `extra` 兜住本工具不认识的键（`ocr_from`、教研备注等），`add` 追加写回时原样保留。
+- 数据层：`data/problems/*.yaml`（9 道示例题：fx-001/002/003、tri-001、seq-001、geo-001/002、prob-001、ineq-001），字段 `statement/choices/answer/solution/steps/pitfalls/hint/teaching/tags/difficulty/workspace_mm/source/figures/figure_width`，中英文键名都认；另有 `extra` 兜住本工具不认识的键（`ocr_from`、教研备注等），`add` 追加写回时原样保留。
 - 词表：`data/taxonomy.yaml`（7 个章节、22 个知识点），`--group-by tag` 按词表顺序分组。
-- 渲染：5 个模板 `templates/{student,answers,teacher,sheet,card}.tex.j2` + 公共 `_preamble.tex.j2` + `_answer_block.tex.j2`（sheet/card 答案页的分步解析宏）；公共导言区已加载 `ctexart/amsmath/amssymb/tcolorbox(含 breakable)/needspace/fancyhdr/enumitem`。
+- 渲染：5 个模板 `templates/{student,answers,teacher,sheet,card}.tex.j2` + 公共 `_preamble.tex.j2` + `_answer_block.tex.j2`（sheet/card 答案页的分步解析宏）+ `_figures.tex.j2`（插图宏）；公共导言区已加载 `ctexart/amsmath/amssymb/graphicx/tcolorbox(含 breakable)/needspace/fancyhdr/enumitem`。
 - CLI：`python -m ocrmath {pack,build,list,validate,add,ocr}`；`pack` 一次出三份并写 `out/<name>/manifest.json`。
 - OCR：`ingest/local.py`（pix2tex 公式级）+ `ingest/cloud.py`（占位）。pix2tex 模型权重已下载到 `.venv/Lib/site-packages/pix2tex/model/checkpoints`，离线可用。
-- 质量：`python -m ocrmath validate --strict` 0 错 0 警；`python -m unittest discover -s tests` **67 个测试全过**；`pack --strict` 编译通过（student 2 页 / answers 3 页 / teacher 4 页）。
+- 质量：`python -m ocrmath validate --strict` 0 错 0 警；`python -m unittest discover -s tests` **102 个测试全过**；`pack --strict` 编译通过（student 2 页 / answers 3 页 / teacher 4 页）；`python scripts/gate.py all` 一条命令跑完两档（含插图 fixture 的真编译）。
 - 审计修复（2026-10-20）：`AUDIT.md` 里 14 条问题 + 1 条工程补充已全部处理，逐条对照见 `AUDIT.md` 第一之二节和第九节。CI 也已落地（同日），审计项全部清零。
 
 ## 关键设计决定（别改回去）
@@ -42,7 +42,7 @@ python .tmp\preview.py out\demo\student.pdf out\preview\demo-student   # PDF →
 ## 下一步（按优先级）
 
 1. **真实题目入库**：先把老师最近要布置的 10–20 道题录进 `data/problems/`，验证题型覆盖（解答题、多小问、含图）。这是唯一能暴露新问题的一步，优先做。
-2. **含图题**：`Problem` 加 `figures: list[str]`（相对 `data/` 的图片路径），模板里 `\includegraphics`；`validate` 检查文件存在。
+2. ~~**含图题**~~ ✅ 已完成（2026-10-20）：`figures: list[str]`（相对 `data/`）+ `figure_width`（0.1–1.0，默认 0.6）；`templates/_figures.tex.j2` 里统一出 `\includegraphics[width=..\linewidth,keepaspectratio]`；图在编译前被拷进 `out/.build/<名字>/`，`main.tex` 只写文件名；`validate` 查文件是否存在、`build` 缺图直接失败指名文件。fixture 见 `tests/fixtures/figures/`，CI 慢速档会单独跑一轮并确认日志里真读到了 png。
 3. **多小问**：题干里的 `(1)(2)` 现在是纯文本；若需要自动编号，加 `parts` 字段并在模板里排。
 4. **答题横线 / 网格**：学生卷可选 `--ruled` 或每题 `answer_lines: 3`，对应模板里画 `\dotfill` 或方格。
 5. **答案册单独装订**：`pack` 加 `--booklet`，answers 用 A5 或双栏、可对折。
@@ -58,6 +58,7 @@ python .tmp\preview.py out\demo\student.pdf out\preview\demo-student   # PDF →
 - LaTeX 坑：`\noindent` 后紧跟中文会被并进控制序列（`\noindent已知` → Undefined control sequence），必须留空格；Jinja 里 `{#` 是注释，别在模板写 `{#1}`；tcolorbox 的 `dash pattern` 键不存在（用实线框）。
 - **临时题库必须自带 `templates/`**：`render()` 只认 `<root>/templates`，不会回落到仓库里的模板。想用 `.tmp/xxx` 当 `--root` 试东西，先把 `templates/` 复制进去，否则报 `'sheet.tex.j2' not found in search path`。
 - LaTeX 编译中间产物在 **`out/.build/<名字>/`**（不是 `out/<包名>/.build/`），要看 `main.log` 里有没有 `Overfull`/`Missing character` 去那里翻。
+- **插图 fixture 要像个项目根**：`tests/fixtures/figures/` 下必须有 `data/taxonomy.yaml` + `data/problems/` + `data/figs/`，因为 `--root` 认的是「有 data/taxonomy.yaml 的目录」；只放 problems/ 会报「找不到知识点词表」。
 - `python -m unittest` 也需要把 `.venv\Lib\site-packages` 放进 `PYTHONPATH`，否则 `ModuleNotFoundError: No module named 'yaml'`。
 - YAML 里导数撇号写两个：`$f''(x)$` 表示 `$f'(x)$`。
 - 选选项里的分数用 `\frac`，`\dfrac` 会把行撑高、A/B/C/D 对不齐。

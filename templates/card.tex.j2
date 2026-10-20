@@ -1,4 +1,5 @@
 {% include "_preamble.tex.j2" %}
+{% import "_figures.tex.j2" as fig %}
 \begin{document}
 \pagestyle{empty}
 
@@ -10,6 +11,8 @@
 
 \begin{tcolorbox}[enhanced, colback=white, colframe=black!65, boxrule=0.6pt, arc=1mm, left=3mm, right=3mm, top=2.5mm, bottom=2.5mm]
 \noindent {{ p.statement }}\par
+
+{{ fig.figures(p) }}
 {% if p.choices %}
 \begin{enumerate}[label=\Alph*., leftmargin=2.4em]
 {% for c in p.choices %}

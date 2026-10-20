@@ -40,8 +40,27 @@ def _line_count(text: str) -> int:
     return total
 
 
-def _question_height_mm(statement: str, choices: list[str]) -> int:
+def _figure_height_mm(figures: list[str], figure_width: float) -> float:
+    """估算插图占用的竖向高度。
+
+    没有图片尺寸信息（不想为这个引入 Pillow），就按「正文宽度 × 比例」当正方形估，
+    略偏大会让 \\needspace 保守一点，正好是我们要的方向。
+    """
+    if not figures:
+        return 0.0
+    body_width_mm = 170.0  # A4 宽 210mm 减左右各 20mm 边距
+    per_figure = body_width_mm * figure_width + 3.0  # 图 + 上下间距
+    return per_figure * len(figures)
+
+
+def _question_height_mm(
+    statement: str,
+    choices: list[str],
+    figures: list[str] | None = None,
+    figure_width: float = 0.6,
+) -> int:
     height = 7.0 + _LINE_MM * _line_count(statement)
+    height += _figure_height_mm(figures or [], figure_width)
     if choices:
         height += 2.0 + 7.2 * len(choices)
     return int(round(height))
@@ -135,7 +154,11 @@ def _build_context(problems: list[Problem], taxonomy: Taxonomy, cfg: RenderConfi
                     "pitfalls": problem.pitfalls,
                     "hint": problem.hint,
                     "teaching": problem.teaching,
-                    "height_mm": _question_height_mm(problem.statement, problem.choices),
+                    "figures": [Path(name).name for name in problem.figures],
+                    "figure_width": problem.figure_width,
+                    "height_mm": _question_height_mm(
+                        problem.statement, problem.choices, problem.figures, problem.figure_width
+                    ),
                     "detail_mm": _detail_height_mm(
                         problem.answer, problem.solution, problem.steps, problem.pitfalls
                     ),
@@ -148,6 +171,8 @@ def _build_context(problems: list[Problem], taxonomy: Taxonomy, cfg: RenderConfi
                     "solution": problem.solution,
                     "steps": problem.steps,
                     "pitfalls": problem.pitfalls,
+                    "figures": [Path(name).name for name in problem.figures],
+                    "figure_width": problem.figure_width,
                 }
             )
         groups.append({"title": title, "problems": rendered_items})

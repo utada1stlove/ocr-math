@@ -438,7 +438,7 @@ python -m ocrmath pack --group-by tag --strict → student 2 页 / answers 3 页
 
 | 档位 | 触发 | 耗时 | 内容 | 为什么这么切 |
 |---|---|---|---|---|
-| 快速 | push / PR | < 1 分钟 | 67 个单测 + `validate --strict` + 五套模板 Jinja 渲染冒烟 | 不需要 TeX，覆盖审计 12 个逻辑修复中的绝大多数；每次提交都拦得住 |
+| 快速 | push / PR | < 1 分钟 | 单测（落地时 67 个，现 102 个）+ `validate --strict` + 五套模板 Jinja 渲染冒烟 | 不需要 TeX，覆盖审计 12 个逻辑修复中的绝大多数；每次提交都拦得住 |
 | 慢速 | 每日 02:00 + 手动 | ~10 分钟 | 五模板真编译 + `main.log` 机检（Overfull / Missing character / `!`）+ `pack --strict` 页数核对 | 需要 xelatex + ctex + 中文字体（约 1–2GB），只有它抓得住版面回归 |
 
 快速档刻意**不跑 `pack`**：`pack` 会调 latexmk 编 PDF，没有 TeX Live 必然 exit 1，属于慢速档的职责。快速档改成直接调 `render()`，在 `StrictUndefined` 下把五套模板各渲染一遍——上下文少一个变量就红，正好覆盖审计问题 2（`_answer_block` 宏要拿到 `steps`/`pitfalls`）。
@@ -446,8 +446,9 @@ python -m ocrmath pack --group-by tag --strict → student 2 页 / answers 3 页
 **实测（本机，2026-10-20）**
 
 ```
-python scripts/gate.py fast   → exit 0（67 tests OK / 9 题 0 错 0 警 / 5 套模板渲染通过）
-python scripts/gate.py slow   → exit 0（5 套 build exit 0、日志无 Overfull·MissingChar·错误；pack 2/3/4 页）
+python scripts/gate.py fast   → exit 0（102 tests OK / 9 题 0 错 0 警 / 5 套模板渲染通过）
+python scripts/gate.py slow   → exit 0（5 套 build exit 0、日志无 Overfull·MissingChar·错误；
+                                插图 fixture 5 套 build exit 0 且日志读到 png；pack 2/3/4 页）
 ```
 
 两档都做了负向验证，确认不是摆设：
@@ -458,4 +459,23 @@ python scripts/gate.py slow   → exit 0（5 套 build exit 0、日志无 Overfu
 - 日志正则本身也单测过：干净日志三项全 0，混入 Overfull / Missing character / `!` 的日志三项各命中 1。
 
 `EXPECTED_PAGES = {"student": 2, "answers": 3, "teacher": 4}` 是写死的——改题库或改版面后要同步更新，否则慢速档会红。这是有意的：页数是版面回归最灵敏的信号。
+
+### 9.2 能力补强（M2 第一批，2026-10-20）
+
+审计没覆盖、但用真实题型一撞就露的两处缺口，本轮补上：
+
+| 缺口 | 修法 | 验证 |
+|---|---|---|
+| 含图题无法排版（导言区没有 `graphicx`） | `Problem.figures`（相对 `data/`）+ `figure_width`；`templates/_figures.tex.j2` 统一出 `\includegraphics`；编译前把图拷进 `out/.build/<名字>/` | `tests/fixtures/figures/` 五模板真编译，日志确认读到 png；CI 慢速档每轮都跑 |
+| 校验只认 `%` 和 `$`，`&` `#` 数学模式外的 `_` 全放过 | `_latex_issues` 改为环境跟踪：认 `$...$`、`\(...\)`、`\[...\]`、`\begin{}...\end{}`；表格/矩阵里的 `&`、数学环境里的 `_` 不误报 | `tests/test_schema.py::LaTeXSpecialCharTests` 9 个用例 |
+
+另两处顺手修的：
+
+- **列表写法里的全角逗号**：`tags: [函数性质，导数应用]`（YAML list）以前不切分，整个串变成一个 tag，`validate` 报「知识点不在词表中」——看起来像词表漏了条目，实则笔误。现在 `_as_list(..., split_items=True)` 对 tags/pitfalls 生效；**choices 明确不开**（`A. 1，2` 里的逗号属于选项内容，审计决策 A 不变）。
+- **`}` 多余时的处理**：原来 `break` 掉整段扫描，后面的 `%`、`$` 检查全部跳过；现在 `depth = 0` 继续扫，剩下的问题仍会报出来。
+
+**为何没动真实题库**：本轮加的是能力，不是内容。`data/problems/` 仍是 9 道示例题——页数基线 2/3/4 页因此保持不变，`ci_pack_check.py` 的 `EXPECTED_PAGES` 不用改。真实题目要老师提供素材，属于下一轮的事（`PLAN.md` 下一步第 1 条）。
+
+**回归**：`python scripts/gate.py all` → exit 0；`unittest` 67 → **102** 个用例全过。
+
 

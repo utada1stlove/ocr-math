@@ -1,0 +1,132 @@
+# 覆盖性回归题库：专门用来压版面的边界情况，不参与正式出卷。
+# 覆盖：多小问 / tabular 表格 / pmatrix+cases / 超长解析 / 超长题干 /
+#       转义字符 / 全角逗号 / 全角逗号选项 / 词表外自由 tag / 答案含单位
+problems:
+- id: cov-001
+  title: 多小问（解答题）
+  statement: |
+    已知函数 $f(x)=x^{3}-3x^{2}+2$。
+    （1）求 $f(x)$ 的单调区间；
+    （2）求 $f(x)$ 在 $[-1,3]$ 上的最大值与最小值；
+    （3）若方程 $f(x)=k$ 有三个不同实根，求 $k$ 的取值范围。
+  answer: 见解析
+  solution: （1）$f'(x)=3x^{2}-6x=3x(x-2)$，故 $f$ 在 $(-\infty,0)$、$(2,+\infty)$ 递增，在 $(0,2)$ 递减。（2）最大值 $f(3)=2$，最小值 $f(0)=2$……（3）$-2<k<2$。
+  steps:
+    - '求导：$f''(x)=3x^{2}-6x=3x(x-2)$。'
+    - '令 $f''(x)=0$ 得 $x=0$ 或 $x=2$，列表判断符号。'
+    - '（2）比较端点与极值点处的函数值。'
+    - '（3）$y=f(x)$ 与 $y=k$ 有三个交点时 $-2<k<2$。'
+  pitfalls:
+    - '（3）问漏掉端点开闭，写成 $-2\le k\le 2$。'
+  tags: [导数应用]
+  difficulty: 4
+  workspace_mm: 60
+
+- id: cov-002
+  title: 含表格的题干
+  statement: |
+    某班 $50$ 名学生的数学成绩频率分布如下表：
+    \begin{center}
+    \begin{tabular}{|c|c|c|c|}
+    \hline 分组 & $[60,70)$ & $[70,80)$ & $[80,90)$ \\
+    \hline 频数 & $5$ & $15$ & $20$ \\
+    \hline
+    \end{tabular}
+    \end{center}
+    估计该班数学成绩的平均分。
+  answer: $79$
+  solution: 用组中值 $65,75,85,95$ 加权，剩余 $10$ 人落在 $[90,100)$。平均分 $\approx 79$。
+  tags: [统计]
+  difficulty: 3
+  workspace_mm: 40
+
+- id: cov-003
+  title: 含矩阵与分段函数
+  statement: |
+    设 $A=\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix}$，
+    函数 $g(x)=\begin{cases} x^{2}, & x\ge 0 \\ -x, & x<0\end{cases}$。
+    求 $g(-2)+g(1)$ 的值。
+  answer: $3$
+  solution: $g(-2)=2$，$g(1)=1$，故和为 $3$。
+  tags: [函数性质]
+  difficulty: 2
+  workspace_mm: 25
+
+- id: cov-004
+  title: 需要插图的题（当前不支持）
+  statement: 如图，在正方体 $ABCD-A_{1}B_{1}C_{1}D_{1}$ 中，求异面直线 $AC$ 与 $BD_{1}$ 所成角的大小。
+  answer: $90^{\circ}$
+  solution: 建系计算得两方向向量数量积为 $0$，故所成角为 $90^{\circ}$。
+  tags: [空间向量]
+  difficulty: 3
+  workspace_mm: 50
+
+- id: cov-005
+  title: 转义字符与百分号
+  statement: 某产品合格率为 $95\%$，且 $a\_1$ 与 $b\#2$ 为标号，求不合格品数占 $5\%$ 时的期望。
+  answer: $0.05n$
+  solution: 期望为 $n\times 5\%$。
+  tags: [概率]
+  difficulty: 2
+
+- id: cov-006
+  title: 超长解析（跨页压力）
+  statement: 已知数列 $\{a_{n}\}$ 满足 $a_{1}=1$，$a_{n+1}=2a_{n}+1$，求通项公式并证明。
+  answer: $a_{n}=2^{n}-1$
+  steps:
+    - '构造等比数列：由 $a_{n+1}=2a_{n}+1$ 得 $a_{n+1}+1=2(a_{n}+1)$。'
+    - '因此 $\{a_{n}+1\}$ 是以 $a_{1}+1=2$ 为首项、$2$ 为公比的等比数列。'
+    - '从而 $a_{n}+1=2\cdot 2^{n-1}=2^{n}$，即 $a_{n}=2^{n}-1$。'
+    - '验证 $n=1$ 时 $a_{1}=2^{1}-1=1$，与题设一致。'
+    - '归纳验证：若 $a_{k}=2^{k}-1$，则 $a_{k+1}=2(2^{k}-1)+1=2^{k+1}-1$，成立。'
+    - '综上，对一切正整数 $n$ 有 $a_{n}=2^{n}-1$。'
+  pitfalls:
+    - '直接两边加常数时算错：应加 $1$ 而不是加 $2$。'
+    - '等比数列的项数搞错，写成 $2\times 2^{n}$。'
+  hint: '两边同加一个常数凑等比。'
+  teaching: '讲评时强调「构造法」的一般套路：$a_{n+1}=pa_{n}+q$ 加 $\dfrac{q}{p-1}$。'
+  tags: [等差等比]
+  difficulty: 4
+  workspace_mm: 55
+
+- id: cov-007
+  title: 词表外的自由 tag + 全角标点
+  statement: 已知集合 $A=\{x\mid x^{2}-3x+2<0\}$，$B=\{x\mid x>a\}$，若 $A\subseteq B$，求 $a$ 的取值范围（用区间表示）。
+  answer: $(-\infty,1]$
+  solution: $A=(1,2)$，由 $A\subseteq B$ 得 $a\le 1$。
+  tags: 集合运算，自定义知识点
+  difficulty: 3
+  workspace_mm: 30
+
+- id: cov-008
+  title: 选择题含全角逗号选项
+  statement: 下列函数中，在 $(0,+\infty)$ 上单调递增的是（　　）
+  choices:
+    - $y=-x+1$
+    - $y=\dfrac{1}{x}$
+    - $y=x^{2}-2x$，$x>1$
+    - $y=\log_{0.5}x$
+  answer: C
+  solution: 只有 C 在 $(1,+\infty)$ 上递增。
+  tags: [函数性质]
+  difficulty: 2
+  workspace_mm: 0
+
+- id: cov-009
+  title: 极长题干（估算高度压力）
+  statement: |
+    某工厂生产甲、乙两种产品，已知生产 $1$ 件甲产品需要 $A$ 原料 $3$ 千克、$B$ 原料 $1$ 千克，获利 $2$ 万元；生产 $1$ 件乙产品需要 $A$ 原料 $1$ 千克、$B$ 原料 $2$ 千克，获利 $3$ 万元。现有 $A$ 原料 $12$ 千克、$B$ 原料 $8$ 千克，且甲产品产量不超过 $4$ 件。问：如何安排生产使利润最大？最大利润是多少？请写出完整的线性规划模型（包括设未知数、列约束条件、写出目标函数），并求出最优解与最大利润，最后说明若 $A$ 原料增加到 $15$ 千克，最优解是否改变，并给出理由。
+  answer: 甲 $4$ 件、乙 $2$ 件，最大利润 $14$ 万元；$A$ 增至 $15$ 千克时最优解不变。
+  solution: 设甲 $x$ 件、乙 $y$ 件，约束为 $3x+y\le 12$、$x+2y\le 8$、$0\le x\le 4$、$y\ge 0$，目标 $z=2x+3y$。可行域顶点代入得 $(4,0),(4,2),(2,3),(0,4)$，$z$ 最大为 $14$。
+  tags: [线性规划]
+  difficulty: 4
+  workspace_mm: 70
+
+- id: cov-010
+  title: 答案含多行与单位
+  statement: 某物体做自由落体运动，$g$ 取 $9.8\ \mathrm{m/s^{2}}$，求 $3$ 秒内下落的距离与第 $3$ 秒内的平均速度。
+  answer: 距离 $44.1\ \mathrm{m}$；第 $3$ 秒内平均速度 $24.5\ \mathrm{m/s}$
+  solution: $h=\dfrac{1}{2}gt^{2}=44.1\ \mathrm{m}$；第 $3$ 秒内位移 $\dfrac{1}{2}g(9-4)=24.5\ \mathrm{m}$，平均速度 $24.5\ \mathrm{m/s}$。
+  tags: [函数性质]
+  difficulty: 2
+  workspace_mm: 30
