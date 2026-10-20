@@ -52,15 +52,12 @@
 {% endfor %}
 
 {% if cfg.answers == 'end' %}
+{% import "_answer_block.tex.j2" as ab %}
 \clearpage
 \begin{center}{\large\bfseries 参考答案与解析}\end{center}
 \vspace{3mm}
 {% for item in answers %}
-\noindent\textbf{ {{- item.number }}.}~{% if item.answer %}{{ item.answer }}{% else %}{\color{gray}（略）}{% endif %}\par
-{% if item.solution %}
-\vspace{1mm}{\small {{ item.solution }}}\par
-{% endif %}
-\vspace{3mm}
+{{ ab.answer_block(item) }}
 {% endfor %}
 {% endif %}
 

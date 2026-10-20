@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -15,16 +16,27 @@ from .store import Taxonomy
 TEMPLATES = ("sheet", "card", "student", "answers", "teacher")
 ANSWER_MODES = ("none", "end", "inline")
 
-# 排版高度估算：只用于 \needspace 判断，宁可略大也不要让标题孤零零留在页底
-_CHARS_PER_LINE = 42
+# 排版高度估算：只用于 \needspace 判断，宁可略大也不要让标题孤零零留在页底。
+# A4 减去 20mm 边距后正文宽约 170mm，11pt 下一个汉字约 3.88mm，
+# 即一行约 44 个汉字；这里按「半角字符宽度」为单位计，一行 88 单位。
+# 以前直接 `len(text)` 当汉字数，混排英文/公式的题干会被低估一半以上。
+_UNITS_PER_LINE = 88
 _LINE_MM = 5.7
+
+
+def _display_width(text: str) -> int:
+    """按半角为单位估算显示宽度：全角/汉字算 2，其余算 1。"""
+    width = 0
+    for char in text:
+        width += 2 if unicodedata.east_asian_width(char) in ("W", "F", "A") else 1
+    return width
 
 
 def _line_count(text: str) -> int:
     plain = text.replace("$", "")
     total = 0
     for para in plain.split("\n"):
-        total += max(1, (len(para) + _CHARS_PER_LINE - 1) // _CHARS_PER_LINE)
+        total += max(1, (_display_width(para) + _UNITS_PER_LINE - 1) // _UNITS_PER_LINE)
     return total
 
 
@@ -129,7 +141,15 @@ def _build_context(problems: list[Problem], taxonomy: Taxonomy, cfg: RenderConfi
                     ),
                 }
             )
-            answers.append({"number": number, "answer": problem.answer, "solution": problem.solution})
+            answers.append(
+                {
+                    "number": number,
+                    "answer": problem.answer,
+                    "solution": problem.solution,
+                    "steps": problem.steps,
+                    "pitfalls": problem.pitfalls,
+                }
+            )
         groups.append({"title": title, "problems": rendered_items})
 
     header = {

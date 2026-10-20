@@ -47,6 +47,14 @@ class Issue:
         return f"[{tag}] {loc + ': ' if loc else ''}{self.message}"
 
 
+# 知识点、易错点这类「自由文本列表」允许用全角逗号分隔——中文输入法下 `，` 是默认逗号。
+# 选项（choices）不在此列：`"A. 1，2"` 里的全角逗号属于选项内容，切开会把一个选项拆成两个。
+_LIST_SEP = r"[,;，；\n]"
+
+# 所有能被识别的键名（含中文别名），用于区分「未知字段」
+_KNOWN_KEYS: frozenset[str] = frozenset(key for aliases in _FIELD_ALIASES.values() for key in aliases)
+
+
 def _as_list(value: Any, sep: str = r"[;,；\n]") -> list[str]:
     if value is None:
         return []
@@ -82,12 +90,17 @@ class Problem:
     pitfalls: list[str] = field(default_factory=list)
     hint: str = ""
     teaching: str = ""
+    # 本模型不认识的键原样保存（教研备注、OCR 来源文件名……），
+    # 这样 `add` 追加写回时不会把人手写的字段静默丢掉。
+    extra: dict[str, Any] = field(default_factory=dict)
 
     # ---------------------------------------------------------------- 构造
     @classmethod
     def from_mapping(cls, data: dict[str, Any]) -> "Problem":
         if not isinstance(data, dict):
             raise TypeError(f"题目必须是映射，收到 {type(data).__name__}")
+
+        extra = {key: value for key, value in data.items() if key not in _KNOWN_KEYS}
 
         raw_workspace = _pick(data, "workspace_mm")
         workspace = None
@@ -103,15 +116,16 @@ class Problem:
             choices=_as_list(_pick(data, "choices")),
             answer=str(_pick(data, "answer") or "").strip(),
             solution=str(_pick(data, "solution") or "").strip(),
-            tags=_as_list(_pick(data, "tags")),
+            tags=_as_list(_pick(data, "tags"), sep=_LIST_SEP),
             difficulty=difficulty,
             workspace_mm=workspace,
             source=str(_pick(data, "source") or "").strip(),
             title=str(_pick(data, "title") or "").strip(),
             steps=_as_list(_pick(data, "steps"), sep=r"\n"),
-            pitfalls=_as_list(_pick(data, "pitfalls")),
+            pitfalls=_as_list(_pick(data, "pitfalls"), sep=_LIST_SEP),
             hint=str(_pick(data, "hint") or "").strip(),
             teaching=str(_pick(data, "teaching") or "").strip(),
+            extra=extra,
         )
 
     def to_mapping(self) -> dict[str, Any]:
@@ -139,6 +153,8 @@ class Problem:
             out["hint"] = self.hint
         if self.teaching:
             out["teaching"] = self.teaching
+        for key, value in self.extra.items():
+            out.setdefault(key, value)
         return out
 
     # ---------------------------------------------------------------- 校验
@@ -169,6 +185,8 @@ class Problem:
 
         if self.statement:
             issues.extend(_latex_issues(self.statement, self.id))
+        if self.answer:
+            issues.extend(_latex_issues(self.answer, self.id, "answer"))
         for idx, choice in enumerate(self.choices, 1):
             issues.extend(_latex_issues(choice, self.id, f"choices[{idx}]"))
         for idx, step in enumerate(self.steps, 1):

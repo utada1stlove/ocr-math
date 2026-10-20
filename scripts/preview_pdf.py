@@ -14,12 +14,18 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     doc = pdfium.PdfDocument(str(pdf_path))
-    for index in range(len(doc)):
-        page = doc[index]
-        image = page.render(scale=1.6).to_pil()
-        target = out_dir / f"page-{index + 1}.png"
-        image.save(target)
-        print(target)
+    try:
+        for index in range(len(doc)):
+            page = doc[index]
+            try:
+                image = page.render(scale=1.6).to_pil()
+                target = out_dir / f"page-{index + 1}.png"
+                image.save(target)
+                print(target)
+            finally:
+                page.close()
+    finally:
+        doc.close()
     return 0
 
 

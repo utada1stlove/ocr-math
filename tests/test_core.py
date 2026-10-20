@@ -72,7 +72,9 @@ class StoreTests(unittest.TestCase):
 
     def test_bank_loads_without_errors(self) -> None:
         self.assertEqual([i for i in self.issues if i.level == "error"], [])
-        self.assertEqual(len(self.problems), 9)
+        # 题库会持续增长，这里只保证「读得到、非空」，不锁具体题数
+        self.assertGreater(len(self.problems), 0)
+        self.assertEqual(len({p.id for p in self.problems}), len(self.problems))
 
     def test_all_problems_valid(self) -> None:
         issues = []

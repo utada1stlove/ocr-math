@@ -1,0 +1,22 @@
+{% macro answer_block(item) %}
+\noindent\textbf{ {{- item.number }}.}~{% if item.answer %}{{ item.answer }}{% else %}{\color{gray}（略）}{% endif %}\par
+{% if item.steps %}
+\vspace{1mm}{\small\textbf{【解析】}}\par
+\begin{enumerate}[label=（\arabic*）, leftmargin=3em, itemsep=0.8mm, topsep=0.4mm]
+{% for s in item.steps %}
+\item {{ s }}
+{% endfor %}
+\end{enumerate}
+{% elif item.solution %}
+\vspace{1mm}{\small {{ item.solution }}}\par
+{% endif %}
+{% if item.pitfalls %}
+\vspace{1mm}{\small\textbf{【易错点】}}\par
+\begin{itemize}[leftmargin=3em, itemsep=0.4mm, topsep=0.3mm]
+{% for q in item.pitfalls %}
+\item {{ q }}
+{% endfor %}
+\end{itemize}
+{% endif %}
+\vspace{3mm}
+{% endmacro %}

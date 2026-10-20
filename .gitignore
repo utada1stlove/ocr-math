@@ -9,6 +9,9 @@ __pycache__/
 # 产物
 out/
 
+# 会话附件副本，不入库
+ocr-math.txt
+
 # LaTeX 中间文件（正常都在 out/.build 下，这里防手滑）
 *.aux
 *.log

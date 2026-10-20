@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -26,22 +27,100 @@ from .store import Taxonomy, append_problem, load_problems, problem_files
 PACK_KINDS = ("student", "answers", "teacher")
 ALL_TEMPLATES = ("sheet", "card") + PACK_KINDS
 
+# 给人看的模板名
+TEMPLATE_LABELS = {
+    "sheet": "习题册",
+    "card": "单题卡",
+    "student": "学生卷",
+    "answers": "参考详解",
+    "teacher": "教师版",
+}
+
+# 每个模板实际会读哪些「版式参数」：cli 声明了参数、模板却不读，就等于哑弹。
+# 逐个核对过模板里的 cfg.* 引用：sheet 读 gap/workspace/fill/answers，
+# card 读 workspace/answers，student 读 gap/one_per_page，answers/teacher 读 echo。
+TEMPLATE_OPTIONS = {
+    "sheet": {"gap", "workspace", "fill", "answers"},
+    "card": {"workspace", "answers"},
+    "student": {"gap", "one_per_page"},
+    "answers": {"echo"},
+    "teacher": {"echo"},
+}
+
+_OPTION_LABELS = {
+    "gap": "--gap",
+    "workspace": "--workspace",
+    "fill": "--fill",
+    "answers": "--answers",
+    "echo": "--echo",
+    "one_per_page": "--one-per-page",
+}
+
+# 与 argparse 里的默认值保持一致（判断「用户是否显式设过」用）
+_OPTION_DEFAULTS = {"gap": 6.0, "workspace": 40.0}
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
-    root = Path(args.root).expanduser().resolve()
+    explicit_root = args.root is not None
+    start = Path(args.root).expanduser() if explicit_root else Path.cwd()
+    root = _resolve_root(start, explicit=explicit_root)
     try:
         return args.func(args, root)
-    except (ValueError, KeyError, RuntimeError) as exc:
+    except (ValueError, KeyError, RuntimeError, OSError) as exc:
         print(f"错误：{exc}", file=sys.stderr)
         return 2
+
+
+def _resolve_root(start: Path, *, explicit: bool) -> Path:
+    """确定项目根目录。
+
+    ``--root`` 显式给出的路径一律尊重（找不到就让后面的加载报错，不猜）；
+    用默认值（当前目录）时，如果当前目录不像项目根（没有 ``data/taxonomy.yaml``），
+    就往上找——这样在 ``src/``、``out/``、``templates/`` 里跑命令也能正常工作。
+    往上找不到时（比如 pip 安装后在任意目录调用），退回到安装时附带的数据目录。
+    """
+    resolved = start.resolve()
+    if explicit:
+        return resolved
+    for candidate in [resolved, *resolved.parents]:
+        if (candidate / "data" / "taxonomy.yaml").exists():
+            return candidate
+    return _installed_root() or resolved
+
+
+def _installed_root() -> Path | None:
+    """pip 安装时 data-files 落在 <prefix>/share/ocrmath/，那里有 taxonomy.yaml 就用它。"""
+    import sysconfig
+
+    candidates = []
+    for scheme in ("data", "purelib", "platlib"):
+        try:
+            candidates.append(Path(sysconfig.get_path(scheme)) / "share" / "ocrmath")
+        except KeyError:  # 少见的自定义 scheme
+            continue
+    try:
+        prefix = Path(sys.prefix) / "share" / "ocrmath"
+    except (NameError, OSError):  # pragma: no cover - 理论兜底
+        prefix = None
+    if prefix is not None:
+        candidates.append(prefix)
+    for candidate in candidates:
+        if (candidate / "data" / "taxonomy.yaml").exists():
+            return candidate
+    return None
 
 
 # --------------------------------------------------------------------- 公共步骤
 def _load(root: Path) -> tuple[Taxonomy, list[Problem], list]:
     taxonomy = Taxonomy.load(root / "data" / "taxonomy.yaml")
-    problems, issues = load_problems(problem_files(root / "data"))
+    files = problem_files(root / "data")
+    if not files:
+        raise FileNotFoundError(
+            f"在 {root / 'data' / 'problems'} 下没有找到任何 .yaml：请确认 --root 指向项目根目录"
+        )
+    problems, issues = load_problems(files)
     for problem in problems:
         issues.extend(problem.validate(taxonomy.known_tags))
     return taxonomy, problems, issues
@@ -126,6 +205,41 @@ def _content_checks(chosen: list[Problem], template: str) -> list[str]:
     return warnings
 
 
+def _option_warnings(
+    args: argparse.Namespace,
+    template: str,
+    *,
+    scope: str = "",
+    defaults: dict[str, float] | None = None,
+    supported: set[str] | None = None,
+) -> list[str]:
+    """cli 里声明了、但该模板根本不会读的参数，明确告警，别让人以为调了就有用。
+
+    ``supported`` 用于 pack：一份参数只要能被本次产出的任一文档读到，就不算哑弹，
+    否则 ``pack --one-per-page`` 会因为答案册/教师版不读它而刷出两条假警告。
+    """
+    supported = TEMPLATE_OPTIONS[template] if supported is None else supported
+    numeric_defaults = {**_OPTION_DEFAULTS, **(defaults or {})}
+    warnings: list[str] = []
+    for name in ("gap", "workspace", "fill", "answers", "echo", "one_per_page"):
+        if name in supported:
+            continue
+        value = getattr(args, name, None)
+        # 只有用户「真的传了」才告警：与默认值相同就不算
+        if name in ("fill", "echo", "one_per_page"):
+            touched = bool(value)
+        elif name == "answers":
+            touched = value not in (None, "none")
+        else:  # gap / workspace
+            touched = value is not None and value != numeric_defaults[name]
+        if touched:
+            where = f"{scope} " if scope else ""
+            warnings.append(
+                f"{where}{_OPTION_LABELS[name]} 对 {template}（{TEMPLATE_LABELS[template]}）模板无效，已忽略"
+            )
+    return warnings
+
+
 # --------------------------------------------------------------------- 子命令
 def cmd_build(args: argparse.Namespace, root: Path) -> int:
     taxonomy, problems, issues = _load(root)
@@ -139,6 +253,8 @@ def cmd_build(args: argparse.Namespace, root: Path) -> int:
         return 2
 
     for warning in _content_checks(chosen, args.template):
+        print(f"[提示] {warning}", file=sys.stderr)
+    for warning in _option_warnings(args, args.template):
         print(f"[提示] {warning}", file=sys.stderr)
 
     cfg = _config(args, args.template)
@@ -164,10 +280,28 @@ def cmd_pack(args: argparse.Namespace, root: Path) -> int:
         print("没有题目满足筛选条件。", file=sys.stderr)
         return 2
 
-    kinds = [kind for kind in PACK_KINDS if kind not in _split(getattr(args, "skip", ""))]
+    skipped = _split(getattr(args, "skip", ""))
+    unknown = [name for name in skipped if name not in PACK_KINDS]
+    if unknown:
+        print(
+            f"--skip 不认识这些值：{'、'.join(unknown)}（可选：{', '.join(PACK_KINDS)}）",
+            file=sys.stderr,
+        )
+        return 2
+    kinds = [kind for kind in PACK_KINDS if kind not in skipped]
+    if not kinds:
+        print(
+            f"--skip 把三份文档全跳过了：{', '.join(PACK_KINDS)} 至少要留一份。",
+            file=sys.stderr,
+        )
+        return 2
     warnings: dict[str, list[str]] = {}
+    # 本次产出会用到哪些版式参数：只要有一份文档读它，整条命令层面就不算哑弹
+    pack_supported = set().union(*(TEMPLATE_OPTIONS[kind] for kind in kinds))
     for kind in kinds:
-        warnings[kind] = _content_checks(chosen, kind)
+        warnings[kind] = _content_checks(chosen, kind) + _option_warnings(
+            args, kind, scope=f"pack 的 {kind}：", defaults={"gap": 8.0}, supported=pack_supported
+        )
         for warning in warnings[kind]:
             print(f"[提示] {warning}", file=sys.stderr)
     gaps = [
@@ -291,10 +425,19 @@ def cmd_add(args: argparse.Namespace, root: Path) -> int:
         target = root / target
     existing, _ = load_problems([target]) if target.exists() else ([], [])
     existing_ids = {p.id for p in existing}
+
+    # 先把整批校验完再写：以前是「写一道、撞 id、返回 1」，
+    # 于是撞 id 之前的那几道已经落盘，但命令报告失败，调用方无从判断到底写进去几道。
+    conflicts = [p.id for p in parsed if p.id in existing_ids]
+    if conflicts:
+        print(f"错误：这些 id 已存在于 {target}：{'、'.join(conflicts)}", file=sys.stderr)
+        return 1
+    dupes = sorted({p.id for p in parsed if [q.id for q in parsed].count(p.id) > 1})
+    if dupes:
+        print(f"错误：待写入的题目里 id 自身重复：{'、'.join(dupes)}", file=sys.stderr)
+        return 1
+
     for problem in parsed:
-        if problem.id in existing_ids:
-            print(f"错误：id 「{problem.id}」已存在于 {target}", file=sys.stderr)
-            return 1
         append_problem(target, problem)
         print(f"已写入 {problem.id} -> {target}")
     return 0
@@ -344,22 +487,42 @@ def _pack_title(kind: str, base: str) -> str:
 
 
 def _split(text: str | None) -> list[str]:
+    """逗号分隔的列表参数。中文输入法下会打出全角逗号/分号，一并认。"""
     if not text:
         return []
-    return [part.strip() for part in text.split(",") if part.strip()]
+    return [part.strip() for part in re.split(r"[,，;；]", text) if part.strip()]
 
 
 def _difficulty(text: str) -> tuple[int, int]:
-    raw = text.strip()
+    raw = text.strip().replace("－", "-").replace("—", "-").replace("–", "-")
     if "-" in raw:
         low, high = raw.split("-", 1)
-        low_i, high_i = int(low), int(high)
+        try:
+            low_i, high_i = int(low), int(high)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"难度范围应形如 1-3，收到 {text!r}") from None
     else:
-        low_i = high_i = int(raw)
+        try:
+            low_i = high_i = int(raw)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"难度范围应形如 1-3，收到 {text!r}") from None
     for value in (low_i, high_i):
         if not 1 <= value <= 5:
             raise argparse.ArgumentTypeError("难度范围必须在 1–5")
+    # 写反了会在选题时静默得到空集，看起来像「题库里没有这个难度的题」
+    if low_i > high_i:
+        raise argparse.ArgumentTypeError(f"难度区间写反了：{low_i} > {high_i}（想写的是 {high_i}-{low_i}）")
     return low_i, high_i
+
+
+def _positive_int(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"应为正整数，收到 {text!r}") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"应为正整数，收到 {value}")
+    return value
 
 
 def _add_selection(p: argparse.ArgumentParser) -> None:
@@ -367,7 +530,7 @@ def _add_selection(p: argparse.ArgumentParser) -> None:
     p.add_argument("--tags", help="按知识点选题，逗号分隔")
     p.add_argument("--tag-mode", default="any", choices=["any", "all"])
     p.add_argument("--difficulty", type=_difficulty, default=(1, 5), help="难度范围，如 1-3")
-    p.add_argument("--limit", type=int)
+    p.add_argument("--limit", type=_positive_int, help="最多几题（正整数）")
     p.add_argument("--seed", type=int)
 
 
@@ -376,7 +539,7 @@ def _parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     def add_root(p: argparse.ArgumentParser) -> None:
-        p.add_argument("--root", default=".", help="项目根目录（默认当前目录）")
+        p.add_argument("--root", default=None, help="项目根目录（默认当前目录，向上自动查找）")
 
     # ---------------------------------------------------------------- build
     build_p = sub.add_parser("build", help="选题并编译单份 PDF")

@@ -8,7 +8,16 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
-$env:PYTHONPATH = "$root\src;$root\.venv\Lib\site-packages"
+# 仓库内开发用：把 src 放前面，venv 的 site-packages 用通配找（不写死 python3.x / Lib）
+$env:PYTHONPATH = "$root\src"
+if (Test-Path "$root\.venv\Lib\site-packages") {
+    $env:PYTHONPATH = "$env:PYTHONPATH;$root\.venv\Lib\site-packages"
+} elseif (Test-Path "$root\.venv\lib") {
+    # Linux / macOS 的 venv 布局
+    $site = Get-ChildItem "$root\.venv\lib" -Directory -Filter "python*" |
+        Select-Object -First 1
+    if ($site) { $env:PYTHONPATH = "$env:PYTHONPATH;$($site.FullName)\site-packages" }
+}
 $env:TMP = "$root\.tmp"
 $env:TEMP = "$root\.tmp"
 $env:PYTHONIOENCODING = "utf-8"

@@ -11,7 +11,7 @@ dependencies = ["PyYAML>=6.0", "Jinja2>=3.1"]
 
 [project.optional-dependencies]
 pdf-preview = ["pypdfium2>=4.0"]
-# 本地公式 OCR；pix2tex 会拉 torch，首次运行还要下载约 116MB 权重
+# 本地公式 OCR；pix2tex 会拉 torch（本身就上百 MB），首次运行还要下载约 70MB 模型权重
 ocr-local = ["pix2tex>=0.1.4", "transformers>=4.30,<5"]
 
 [project.scripts]
@@ -19,3 +19,10 @@ ocrmath = "ocrmath.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# templates/ 与 data/ 在仓库根目录（故意如此：模板是给人直接改的 .tex.j2）。
+# 安装时把它们放到 <prefix>/share/ocrmath/，cli 找不到项目根时会回落到这里。
+[tool.setuptools.data-files]
+"share/ocrmath/templates" = ["templates/*.tex.j2"]
+"share/ocrmath/data" = ["data/taxonomy.yaml"]
+"share/ocrmath/data/problems" = ["data/problems/*.yaml"]

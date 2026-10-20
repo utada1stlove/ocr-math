@@ -1,0 +1,17 @@
+# 统一换行符，避免 Windows 上编辑过的 .yaml / .j2 提交后整文件 diff
+* text=auto eol=lf
+
+# Windows 批处理必须保留 CRLF，否则 cmd 解析出错
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制：别做换行转换，也别让 git 把它当文本 diff
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ttf binary
+*.otf binary
+*.zip binary

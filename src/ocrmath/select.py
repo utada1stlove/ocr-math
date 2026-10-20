@@ -20,15 +20,37 @@ class SelectOptions:
 
 
 def select_problems(problems: list[Problem], options: SelectOptions) -> list[Problem]:
+    """按 ``ids`` -> ``tags`` -> ``difficulty`` -> ``seed`` -> ``limit`` 的顺序过滤。
+
+    显式点名的 ``ids`` 是「就要这几道」，因此不再参与标签/难度过滤，也不被 ``seed`` 打乱；
+    只有 ``limit`` 仍然生效（``--limit`` 是硬上限，语义上应该遵守）。
+    """
+    if options.limit is not None and options.limit < 1:
+        raise ValueError(f"--limit 必须是正整数，当前 {options.limit}")
+    if options.difficulty_min > options.difficulty_max:
+        raise ValueError(
+            f"难度区间写反了：下限 {options.difficulty_min} 大于上限 {options.difficulty_max}"
+            f"（写成 {options.difficulty_max}-{options.difficulty_min} 才是想要的）"
+        )
+
     result = list(problems)
 
     if options.ids:
-        wanted = [pid.strip() for pid in options.ids if pid.strip()]
+        wanted: list[str] = []
+        seen: set[str] = set()
+        for raw in options.ids:
+            pid = raw.strip()
+            if pid and pid not in seen:
+                seen.add(pid)
+                wanted.append(pid)
         by_id = {p.id: p for p in result}
         missing = [pid for pid in wanted if pid not in by_id]
         if missing:
             raise KeyError(f"题库中找不到这些 id：{', '.join(missing)}")
-        result = [by_id[pid] for pid in wanted]
+        selected = [by_id[pid] for pid in wanted]
+        if options.limit is not None:
+            selected = selected[: options.limit]
+        return selected
 
     if options.tags:
         tags = [t.strip() for t in options.tags if t.strip()]

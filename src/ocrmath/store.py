@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
@@ -9,6 +10,9 @@ from typing import Any, Iterable
 import yaml
 
 from .schema import Issue, Problem
+
+# 顶层 `problems:` 形式的文件里，列表项所在行的缩进
+_ITEM_RE = re.compile(r"^(\s*)-\s")
 
 
 @dataclass
@@ -35,8 +39,18 @@ class Taxonomy:
 
     @classmethod
     def load(cls, path: Path | None) -> "Taxonomy":
-        if path is None or not path.exists():
-            return cls()
+        """读词表。
+
+        文件不存在就直接报错——以前返回空词表，于是 `--root` 指错目录时
+        `ocrmath list` 会打印「题库为空」并返回 0，看起来像「这个题库就是空的」。
+        """
+        if path is None:
+            raise FileNotFoundError("没有指定知识点词表路径（应为 <root>/data/taxonomy.yaml）")
+        if not path.exists():
+            raise FileNotFoundError(
+                f"找不到知识点词表 {path}：请确认 --root 指向项目根目录"
+                f"（即 data/taxonomy.yaml 所在的目录）"
+            )
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         if not isinstance(raw, dict):
             raise ValueError(f"{path} 顶层应为映射")
@@ -106,15 +120,41 @@ def load_problems(paths: Iterable[Path]) -> tuple[list[Problem], list[Issue]]:
 
 
 def append_problem(path: Path, problem: Problem) -> None:
+    """把一道题追加到 ``path`` 末尾。
+
+    采用**纯文本追加**而不是「读入 -> safe_dump 整个文件」：后者会把文件里的注释
+    （含行尾注释）全部抹掉，并给没写的字段补默认值。代价是只在文件末尾追加几行文本，
+    其余字节原样保留。
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or []
-        if isinstance(raw, dict) and "problems" in raw:
-            raw = raw["problems"]
-        if not isinstance(raw, list):
+    block = yaml.safe_dump(
+        [problem.to_mapping()], allow_unicode=True, sort_keys=False, width=1000, default_flow_style=False
+    )
+
+    if not path.exists() or not path.read_text(encoding="utf-8").strip():
+        path.write_text(block, encoding="utf-8")
+        return
+
+    text = path.read_text(encoding="utf-8")
+    parsed = yaml.safe_load(text)
+    indent = ""
+    if isinstance(parsed, dict):
+        if "problems" not in parsed or not isinstance(parsed["problems"], list):
             raise ValueError(f"{path} 不是题目列表，拒绝追加")
-    else:
-        raw = []
-    raw.append(problem.to_mapping())
-    text = yaml.safe_dump(raw, allow_unicode=True, sort_keys=False, width=1000)
-    path.write_text(text, encoding="utf-8")
+        # 顶层 `problems:` 形式：新条目要跟已有条目缩进对齐
+        for line in text.splitlines():
+            match = _ITEM_RE.match(line)
+            if match and match.group(1):
+                indent = match.group(1)
+                break
+    elif not isinstance(parsed, list):
+        raise ValueError(f"{path} 不是题目列表，拒绝追加")
+
+    if indent:
+        block = "".join(indent + line if line.strip() else line for line in block.splitlines(keepends=True))
+
+    if not text.endswith("\n"):
+        text += "\n"
+    if not text.endswith("\n\n"):
+        text += "\n"
+    path.write_text(text + block, encoding="utf-8")
