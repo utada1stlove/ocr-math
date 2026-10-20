@@ -1,0 +1,57 @@
+{% include "_preamble.tex.j2" %}
+\begin{document}
+\pagestyle{empty}
+
+{% for group in groups %}
+{% set outer_loop = loop %}
+{% for p in group.problems %}
+\noindent{\small\color{gray}题 {{- p.number }} / {{ cfg.total }}{% if group.title %}　·　{{ group.title }}{% endif %}{% if cfg.show_difficulty %}　难度 {{ p.difficulty }}{% endif %}{% if cfg.show_tags and p.tags %}　{% for t in p.tags %}\#{{ t }}{% if not loop.last %} {% endif %}{% endfor %}{% endif %}}\hfill
+\par\vspace{2mm}
+
+\begin{tcolorbox}[enhanced, colback=white, colframe=black!65, boxrule=0.6pt, arc=1mm, left=3mm, right=3mm, top=2.5mm, bottom=2.5mm]
+\noindent {{ p.statement }}\par
+{% if p.choices %}
+\begin{enumerate}[label=\Alph*., leftmargin=2.4em]
+{% for c in p.choices %}
+\item {{ c }}
+{% endfor %}
+\end{enumerate}
+{% endif %}
+\end{tcolorbox}
+
+{% if p.workspace_mm %}
+\vspace{2.5mm}
+\noindent{\small\color{gray}草稿区}\par\vspace{1mm}
+\begin{tcolorbox}[enhanced, colback=white, colframe=gray!45, boxrule=0.4pt, arc=1mm, height={{- p.workspace_mm }}mm, left=0mm, right=0mm, top=0mm, bottom=0mm]
+\vspace{0pt}
+\end{tcolorbox}
+{% endif %}
+
+{% if cfg.answers == 'inline' and p.answer %}
+\vspace{2mm}
+\noindent{\small\textbf{答案：}{{ p.answer }}}\par
+{% if p.solution %}
+\vspace{1mm}\noindent{\small\textbf{解析：}{{ p.solution }}}\par
+{% endif %}
+{% endif %}
+
+{% if not (outer_loop.last and loop.last) %}
+\newpage
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+{% if cfg.answers == 'end' %}
+\clearpage
+\begin{center}{\large\bfseries 参考答案与解析}\end{center}
+\vspace{3mm}
+{% for item in answers %}
+\noindent\textbf{ {{- item.number }}.}~{% if item.answer %}{{ item.answer }}{% else %}{\color{gray}（略）}{% endif %}\par
+{% if item.solution %}
+\vspace{1mm}{\small {{ item.solution }}}\par
+{% endif %}
+\vspace{3mm}
+{% endfor %}
+{% endif %}
+
+\end{document}

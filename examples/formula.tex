@@ -1,0 +1,9 @@
+% 用于生成 examples/formula.png 的源文件：
+%   latexmk -xelatex formula.tex
+% 然后 scripts/preview_pdf.py formula.pdf 把首页转成 PNG。
+\documentclass[border=8pt]{standalone}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\begin{document}
+$\displaystyle \int_{0}^{1} x^{2}\,\mathrm{d}x=\frac{1}{3}$
+\end{document}

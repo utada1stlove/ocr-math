@@ -1,0 +1,23 @@
+# 示例题库：立体几何、不等式
+problems:
+  - id: geo-002
+    title: 线面位置关系
+    statement: 已知 $m$，$n$ 是两条不同的直线，$\alpha$，$\beta$ 是两个不同的平面，下列命题正确的是（　　）
+    choices:
+      - 若 $m\parallel\alpha$，$n\parallel\alpha$，则 $m\parallel n$
+      - 若 $m\perp\alpha$，$m\perp\beta$，则 $\alpha\parallel\beta$
+      - 若 $m\subset\alpha$，$n\subset\beta$，$\alpha\parallel\beta$，则 $m\parallel n$
+      - 若 $m\perp n$，$m\perp\alpha$，则 $n\parallel\alpha$
+    answer: B
+    solution: 平行于同一平面的两条直线可能相交或异面，A 错；垂直于同一直线的两个平面平行，B 对；两个平行平面内的直线可能异面，C 错；$n$ 可能在平面 $\alpha$ 内，D 错。
+    tags: [线面关系]
+    difficulty: 3
+    workspace_mm: 0
+
+  - id: ineq-001
+    statement: 已知 $a>0$，$b>0$，且 $a+b=1$，求 $\dfrac{1}{a}+\dfrac{1}{b}$ 的最小值。
+    answer: $4$
+    solution: 由基本不等式 $\dfrac{1}{a}+\dfrac{1}{b}=(a+b)\left(\dfrac{1}{a}+\dfrac{1}{b}\right)=2+\dfrac{b}{a}+\dfrac{a}{b}\ge 2+2=4$，当且仅当 $a=b=\dfrac{1}{2}$ 时取等号。
+    tags: [基本不等式]
+    difficulty: 3
+    workspace_mm: 30

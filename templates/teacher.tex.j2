@@ -1,0 +1,80 @@
+{% include "_preamble.tex.j2" %}
+\begin{document}
+\pagestyle{fancy}
+\fancyfoot[C]{\small 教师版 · 第 \thepage 页}
+
+{% if cfg.title %}
+\begin{center}
+{\LARGE\bfseries {{ cfg.title }}\par}
+{% if cfg.subtitle %}
+\vspace{2mm}{\large {{ cfg.subtitle }}\par}
+{% endif %}
+\end{center}
+\vspace{5mm}
+{% endif %}
+
+{% for group in groups %}
+{% set first = group.problems[0] %}
+{% if group.title %}
+\needspace{ {{- (([first.height_mm + 45, 95]|min)) }}mm}
+\vspace{2mm}\noindent{\large\bfseries {{ group.title }}}\par
+\vspace{1.5mm}{\color{black!25}\hrule height 0.5pt}\vspace{3mm}
+{% endif %}
+
+{% for p in group.problems %}
+{% if not loop.first %}
+\needspace{ {{- (([p.height_mm + 45, 95]|min)) }}mm}
+{% endif %}
+\noindent{\large\bfseries 第 {{ p.number }} 题}\hfill
+{\small\color{gray}{% if cfg.show_difficulty %}难度 {{ p.difficulty }}{% endif %}{% if cfg.show_tags and p.tags %}　{% for t in p.tags %}\#{{ t }}{% if not loop.last %} {% endif %}{% endfor %}{% endif %}}\par
+\vspace{1.5mm}
+
+\noindent {{ p.statement }}\par
+{% if p.choices %}
+\begin{enumerate}[label=\Alph*., leftmargin=2.4em, itemsep=0.8mm, topsep=0.8mm]
+{% for c in p.choices %}
+\item {{ c }}
+{% endfor %}
+\end{enumerate}
+{% endif %}
+
+\vspace{2mm}
+\begin{tcolorbox}[breakable, enhanced, colback=black!4, colframe=black!25, boxrule=0.4pt, arc=0.8mm, left=3mm, right=3mm, top=2.5mm, bottom=2.5mm]
+{% if p.answer %}
+\noindent\textbf{【答案】}{{ p.answer }}\par
+{% endif %}
+{% if p.hint %}
+\vspace{1mm}\noindent\textbf{【思路】}{{ p.hint }}\par
+{% endif %}
+{% if p.steps %}
+\vspace{1.5mm}\noindent\textbf{【解析】}\par
+\begin{enumerate}[label=（\arabic*）, leftmargin=2.6em, itemsep=1mm, topsep=0.8mm]
+{% for s in p.steps %}
+\item {{ s }}
+{% endfor %}
+\end{enumerate}
+{% elif p.solution %}
+\vspace{1.5mm}\noindent\textbf{【解析】}{{ p.solution }}\par
+{% endif %}
+\end{tcolorbox}
+
+{% if p.pitfalls %}
+\needspace{26mm}
+\vspace{2mm}\noindent\textbf{【易错点】}\par
+\vspace{0.5mm}
+\begin{itemize}[leftmargin=2.6em, itemsep=0.6mm, topsep=0.4mm]
+{% for q in p.pitfalls %}
+\item {{ q }}
+{% endfor %}
+\end{itemize}
+{% endif %}
+{% if p.teaching %}
+\needspace{12mm}
+\vspace{1.5mm}\noindent\textbf{【讲评】}{{ p.teaching }}\par
+{% endif %}
+
+\vspace{5mm}
+{% endfor %}
+{% endfor %}
+
+\end{document}

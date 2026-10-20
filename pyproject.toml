@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ocrmath"
+version = "0.1.0"
+description = "数学试题识别与 LaTeX/PDF 排版流水线"
+requires-python = ">=3.10"
+dependencies = ["PyYAML>=6.0", "Jinja2>=3.1"]
+
+[project.optional-dependencies]
+pdf-preview = ["pypdfium2>=4.0"]
+# 本地公式 OCR；pix2tex 会拉 torch，首次运行还要下载约 116MB 权重
+ocr-local = ["pix2tex>=0.1.4", "transformers>=4.30,<5"]
+
+[project.scripts]
+ocrmath = "ocrmath.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.tmp/
+.cache/
+.pytest_cache/
+
+# 产物
+out/
+
+# LaTeX 中间文件（正常都在 out/.build 下，这里防手滑）
+*.aux
+*.log
+*.fls
+*.fdb_latexmk
+*.xdv
+*.synctex.gz

@@ -1,0 +1,66 @@
+{% include "_preamble.tex.j2" %}
+\begin{document}
+
+{% if cfg.title %}
+\begin{center}
+{\LARGE\bfseries {{ cfg.title }}\par}
+{% if cfg.subtitle %}
+\vspace{2mm}{\large {{ cfg.subtitle }}\par}
+{% endif %}
+\end{center}
+\vspace{5mm}
+{% endif %}
+
+{% for group in groups %}
+{% set first = group.problems[0] %}
+{% if group.title %}
+\needspace{ {{- first.detail_mm + 14 }}mm}
+\vspace{2mm}\noindent{\large\bfseries {{ group.title }}}\par
+\vspace{1.5mm}{\color{black!25}\hrule height 0.5pt}\vspace{3mm}
+{% endif %}
+
+{% for p in group.problems %}
+{% if not loop.first %}
+\needspace{ {{- ([p.detail_mm + 18, 85]|min) }}mm}
+{% endif %}
+\noindent{\large\bfseries 第 {{ p.number }} 题}\hfill
+{\small\color{gray}{% if cfg.show_difficulty %}难度 {{ p.difficulty }}{% endif %}{% if cfg.show_tags and p.tags %}　{% for t in p.tags %}\#{{ t }}{% if not loop.last %} {% endif %}{% endfor %}{% endif %}}\par
+\vspace{1mm}
+
+{% if cfg.echo_statement %}
+{\small\color{gray}{{ p.statement }}}\par
+\vspace{1.5mm}
+{% endif %}
+
+{% if p.answer %}
+\begin{tcolorbox}[enhanced, colback=black!4, colframe=black!30, boxrule=0.35pt, arc=0.8mm, left=2.5mm, right=2.5mm, top=2mm, bottom=2mm]
+\noindent\textbf{【答案】}{{ p.answer }}\par
+\end{tcolorbox}
+\vspace{1.5mm}
+{% endif %}
+
+{% if p.steps %}
+\noindent\textbf{【解析】}\par
+\begin{enumerate}[label=（\arabic*）, leftmargin=3em, itemsep=1.2mm, topsep=0.8mm]
+{% for s in p.steps %}
+\item {{ s }}
+{% endfor %}
+\end{enumerate}
+{% elif p.solution %}
+\noindent\textbf{【解析】}{{ p.solution }}\par
+{% endif %}
+
+{% if p.pitfalls %}
+\vspace{1.5mm}\noindent\textbf{【易错点】}\par
+\begin{itemize}[leftmargin=3em, itemsep=0.8mm, topsep=0.8mm]
+{% for q in p.pitfalls %}
+\item {{ q }}
+{% endfor %}
+\end{itemize}
+{% endif %}
+
+\vspace{4mm}{\color{black!15}\hrule height 0.4pt}\vspace{3mm}
+{% endfor %}
+{% endfor %}
+
+\end{document}

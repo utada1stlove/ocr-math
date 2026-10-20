@@ -1,0 +1,67 @@
+{% include "_preamble.tex.j2" %}
+\begin{document}
+
+{% if cfg.title %}
+\begin{center}
+{\LARGE\bfseries {{ cfg.title }}\par}
+{% if cfg.subtitle %}
+\vspace{2mm}{\large {{ cfg.subtitle }}\par}
+{% endif %}
+\end{center}
+{% endif %}
+
+\vspace{1mm}
+\noindent{\small 班级\rule{22mm}{0.4pt}\quad 姓名\rule{22mm}{0.4pt}\quad 日期\rule{18mm}{0.4pt}\quad 得分\rule{16mm}{0.4pt}}\par
+\vspace{5mm}
+
+{% for group in groups %}
+{% if group.title %}
+{% set head_need = (group.problems[0].workspace_mm * 0.35 + 55)|int %}
+\needspace{ {{- head_need }}mm}
+\vspace{2mm}
+\noindent{\large\bfseries {{ group.title }}}\par
+\vspace{1.5mm}{\color{black!25}\hrule height 0.5pt}\vspace{3mm}
+{% endif %}
+
+{% for p in group.problems %}
+\needspace{ {{- (p.workspace_mm * 0.35 + 28)|int }}mm}
+\noindent\textbf{ {{- p.number }}.}~{{ p.statement }}\par
+
+{% if p.choices %}
+\begin{enumerate}[label=\Alph*., leftmargin=2.4em]
+{% for c in p.choices %}
+\item {{ c }}
+{% endfor %}
+\end{enumerate}
+{% endif %}
+
+{% if cfg.show_difficulty or (cfg.show_tags and p.tags) %}
+{\small\color{gray}\hfill{% if cfg.show_difficulty %}难度 {{ p.difficulty }}{% endif %}{% if cfg.show_tags and p.tags %}　{% for t in p.tags %}\#{{ t }}{% if not loop.last %} {% endif %}{% endfor %}{% endif %}}\par
+{% endif %}
+
+{% if cfg.answers == 'inline' and p.answer %}
+\vspace{1mm}{\small\textbf{答案：}{{ p.answer }}}\par
+{% endif %}
+
+{% if p.workspace_mm %}
+\vspace{ {{- p.workspace_mm }}mm}
+{% endif %}
+
+{% if cfg.fill %}\vfill{% else %}\vspace{ {{- cfg.gap_mm }}mm}{% endif %}
+{% endfor %}
+{% endfor %}
+
+{% if cfg.answers == 'end' %}
+\clearpage
+\begin{center}{\large\bfseries 参考答案与解析}\end{center}
+\vspace{3mm}
+{% for item in answers %}
+\noindent\textbf{ {{- item.number }}.}~{% if item.answer %}{{ item.answer }}{% else %}{\color{gray}（略）}{% endif %}\par
+{% if item.solution %}
+\vspace{1mm}{\small {{ item.solution }}}\par
+{% endif %}
+\vspace{3mm}
+{% endfor %}
+{% endif %}
+
+\end{document}

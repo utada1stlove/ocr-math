@@ -1,0 +1,47 @@
+{% include "_preamble.tex.j2" %}
+\begin{document}
+\pagestyle{empty}
+
+{% if cfg.title %}
+\begin{center}
+{\LARGE\bfseries {{ cfg.title }}\par}
+{% if cfg.subtitle %}
+\vspace{2mm}{\large {{ cfg.subtitle }}\par}
+{% endif %}
+\end{center}
+\vspace{4mm}
+{% endif %}
+
+{% for group in groups %}
+{% set outer_loop = loop %}
+{% set first = group.problems[0] %}
+{% if group.title %}
+\needspace{ {{- first.height_mm + 12 }}mm}
+\vspace{2mm}\noindent{\large\bfseries {{ group.title }}}\par
+\vspace{1.5mm}{\color{black!25}\hrule height 0.5pt}\vspace{3mm}
+{% endif %}
+
+{% for p in group.problems %}
+{% if not loop.first %}
+\needspace{ {{- p.height_mm + 8 }}mm}
+{% endif %}
+\begin{tcolorbox}[enhanced, colback=white, colframe=black!60, boxrule=0.5pt, arc=1mm, left=3mm, right=3mm, top=2.5mm, bottom=2.5mm]
+\noindent\textbf{ {{- p.number }}.}~{{ p.statement }}\par
+{% if p.choices %}
+\begin{enumerate}[label=\Alph*., leftmargin=2.4em, itemsep=0.8mm, topsep=0.8mm]
+{% for c in p.choices %}
+\item {{ c }}
+{% endfor %}
+\end{enumerate}
+{% endif %}
+\end{tcolorbox}
+
+{% if cfg.one_per_page %}
+{% if not (outer_loop.last and loop.last) %}\newpage{% endif %}
+{% else %}
+\vspace{ {{- cfg.gap_mm }}mm}
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+\end{document}
