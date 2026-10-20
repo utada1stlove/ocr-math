@@ -60,7 +60,7 @@ pip install "pix2tex>=0.1.4" "transformers<5"   # 本地 OCR（会自动拉 torc
 python -m ocrmath pack --name demo --title "高一数学 周末练习" `
     --subtitle "函数、三角、数列与概率" --group-by tag
 
-# 只给学生卷（一题一页，题间留白更松）
+# 只给学生卷（学生卷默认按知识点分组；--one-per-page 是「一题一页」）
 python -m ocrmath pack --name demo --title "高一数学 周末练习" --skip answers,teacher --one-per-page
 
 # 看看题库里有什么
@@ -144,13 +144,13 @@ python -m ocrmath validate --strict  # 警告也算失败
 python -m ocrmath pack --strict ...  # 缺答案/解析就不打包
 ```
 
-校验会查：id 合法且不重复、题干非空、选择题至少 2 个选项、难度 1–5、留白 0–250mm、`{}` 配对、`$` 成对、未转义的 `%`（这些都会让 LaTeX 编译失败或悄悄吃掉半行字），以及 `steps`/`pitfalls`/`hint`/`teaching` 的空项与公式配对。
+校验会查：id 合法且不重复、题干非空、选择题至少 2 个选项、难度 1–5、留白 0–250mm、`{}` 配对、`$` 成对、未转义的 `%`（这些都会让 LaTeX 编译失败或悄悄吃掉半行字），以及 `steps`/`pitfalls`/`hint`/`teaching` 的空项与公式配对。`answer` 与题干同等对待——答案里的 `%`、奇数个 `$` 一样会被查出来（以前只查题干，答案写错要到编译时才炸）。
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-覆盖数据模型（含中文键名与详解字段）、词表、选题/分组、五种模板渲染（不编译 LaTeX，秒级返回）。
+覆盖数据模型（含中文键名与详解字段）、词表、选题/分组、CLI 参数校验、追加写回、五种模板渲染（不编译 LaTeX，秒级返回）。
 
 ## 版式参数
 
@@ -172,6 +172,15 @@ python -m unittest discover -s tests -v
 | `--ids` `--tags` `--tag-mode` `--difficulty` `--limit` `--seed` | — | 选题：按编号、按知识点（any/all）、按难度区间、限量、随机种子 |
 
 `pack`：与上面同名参数含义一致（`--gap`/`--workspace`/`--one-per-page` 只作用于学生卷）；另有 `--name`（输出目录名）、`--out`（自定义输出目录）、`--group-by`、`--skip student,answers,teacher`、`--strict`。
+
+参数校验（都是「说清楚为什么错」，不是静默忽略）：
+
+- `--ids` / `--tags` / `--skip` 的分隔符认半角逗号、全角逗号、分号（中文输入法直接打 `，` 也可以）。`--ids` 点名的题目不再被 `--tags`/`--difficulty` 二次过滤，也不会被 `--seed` 打乱顺序。
+- `--limit` 必须是正整数，`0` 和负数直接报错（以前 `--limit -1` 会静默选空）。
+- `--difficulty` 支持 `2`、`2-4`，全角连字符 `2－4` 也认；区间写反（`4-2`）直接报错。
+- `--skip` 只接受 `student`/`answers`/`teacher`，写错或三份全跳过都会报错退出（以前会只留一个 `manifest.json` 却报成功）。
+- 某个模板不读的参数（例如 `sheet --one-per-page`、`card --gap`）会在 stderr 明确提示「对 X 模板无效，已忽略」。
+- 不写 `--root` 时，会从当前目录向上找 `data/taxonomy.yaml`，所以在 `src/`、`out/` 子目录里跑命令一样能用；找不到就报错，不会假装题库是空的。
 
 排版约定：
 
@@ -216,3 +225,4 @@ OCRMATH_OCR_MODEL=...
 - 模板里 `\noindent` 这类控制词后面紧跟中文会被当成更长的控制序列（`\noindent已知` 直接报 Undefined control sequence），所以 `\noindent` 后要留一个空格；改模板时留意这一点。
 - 中文字体走 `ctexart` 默认（Windows 上是宋体/黑体），需要别的字体加 `fontset=` 选项即可。
 - 详解里一条 `steps` 不要太长（两三行以内），跨页时更容易保持「一步一段」的阅读节奏。
+- `data/problems/*.yaml` 可以随便加注释和自定义字段（比如 `ocr_from`、教研备注）：`ocrmath add` 是**文本追加**，不会重写整个文件，注释和本工具不认识的键都会原样留在原处。
