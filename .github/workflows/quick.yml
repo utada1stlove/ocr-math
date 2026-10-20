@@ -1,0 +1,57 @@
+# 快速档：不装 TeX 也能跑，每次 push / PR 都挡一道。
+#
+# 覆盖 AUDIT.md 里绝大多数逻辑性修复：
+#   - 67 个单测（schema / select / store / cli）
+#   - validate --strict（含 answer 的 LaTeX 体检、全角逗号、题解缺失）
+#   - 五套模板的 Jinja 渲染冒烟（StrictUndefined 下少一个变量就红）
+#
+# 编译层的回归（Overfull / Missing character / 页数漂移）依赖 TeX Live，
+# 放在 latex.yml 的夜间档，不挡日常提交。
+name: quick
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # pyproject 声明 requires-python >= 3.10，取两端各一个
+        python-version: ["3.10", "3.13"]
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "PyYAML>=6.0" "Jinja2>=3.1"
+
+      - name: 单测
+        run: python -m unittest discover -s tests -v
+
+      - name: 题库校验（严格）
+        run: python -m ocrmath validate --strict
+
+      - name: 五套模板渲染冒烟
+        run: python scripts/ci_render_smoke.py
+
+      - name: 汇总（本地同一条命令）
+        if: always()
+        run: echo "本地复现：python scripts/gate.py fast"
+

@@ -52,7 +52,7 @@
 | 13 | `preview_pdf.py` 不关文档 | ✅ 已修 | `try/finally` 里 `page.close()` / `doc.close()` |
 | 14 | 权重体积 70MB vs 116MB | ✅ 已修 | 统一为 70MB（torch 本身另计） |
 | — | 无 `.gitattributes` | ✅ 已加 | 固定 LF，`*.ps1`/`*.bat` 保留 CRLF，PDF/图片标 binary |
-| — | 无 CI | ⬜ 未做 | 需要先确定托管平台（GitHub Actions 还是别的） |
+| — | 无 CI | ✅ 已加（分两档） | `.github/workflows/quick.yml`（push/PR，不装 TeX）+ `.github/workflows/latex.yml`（夜间/手动，真编 PDF）；本地同一条命令 `python scripts/gate.py fast\|slow` |
 
 ---
 
@@ -431,3 +431,31 @@ python -m ocrmath pack --group-by tag --strict → student 2 页 / answers 3 页
 ```
 
 页数与修复前完全一致（student 2 / answers 3 / teacher 4），说明本轮改动没有把版面挤变形。
+
+### 9.1 CI 两档（本轮补做）
+
+审计里唯一没落地的项是 CI。落地时把它拆成两档，理由是两边成本差一个数量级：
+
+| 档位 | 触发 | 耗时 | 内容 | 为什么这么切 |
+|---|---|---|---|---|
+| 快速 | push / PR | < 1 分钟 | 67 个单测 + `validate --strict` + 五套模板 Jinja 渲染冒烟 | 不需要 TeX，覆盖审计 12 个逻辑修复中的绝大多数；每次提交都拦得住 |
+| 慢速 | 每日 02:00 + 手动 | ~10 分钟 | 五模板真编译 + `main.log` 机检（Overfull / Missing character / `!`）+ `pack --strict` 页数核对 | 需要 xelatex + ctex + 中文字体（约 1–2GB），只有它抓得住版面回归 |
+
+快速档刻意**不跑 `pack`**：`pack` 会调 latexmk 编 PDF，没有 TeX Live 必然 exit 1，属于慢速档的职责。快速档改成直接调 `render()`，在 `StrictUndefined` 下把五套模板各渲染一遍——上下文少一个变量就红，正好覆盖审计问题 2（`_answer_block` 宏要拿到 `steps`/`pitfalls`）。
+
+**实测（本机，2026-10-20）**
+
+```
+python scripts/gate.py fast   → exit 0（67 tests OK / 9 题 0 错 0 警 / 5 套模板渲染通过）
+python scripts/gate.py slow   → exit 0（5 套 build exit 0、日志无 Overfull·MissingChar·错误；pack 2/3/4 页）
+```
+
+两档都做了负向验证，确认不是摆设：
+
+- 渲染冒烟：注入 `{{ nonexistent_variable }}` → exit 1，报 `UndefinedError: 'nonexistent_variable' is undefined`；换成空题库目录 → exit 1，报「找不到模板目录」。
+- 编译机检：往模板里塞 `\hbox to 1pt{\hskip 500pt}` → exit 1，报 `sheet: Overfull \hbox × 1，例：Overfull \hbox (499.0pt too wide) detected at line 28`。
+- 页数核对：把期望页数改成 student 99 → exit 1，报 `student 页数 2，期望 99（版面可能漂了）`。
+- 日志正则本身也单测过：干净日志三项全 0，混入 Overfull / Missing character / `!` 的日志三项各命中 1。
+
+`EXPECTED_PAGES = {"student": 2, "answers": 3, "teacher": 4}` 是写死的——改题库或改版面后要同步更新，否则慢速档会红。这是有意的：页数是版面回归最灵敏的信号。
+
