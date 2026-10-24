@@ -69,3 +69,33 @@ Debian TeX 包清单够用，详见 `CHANGELOG.md`。以后改模板或加宏包
   `PYTHONPATH=".venv/Lib/site-packages" python -m pip wheel . -w .tmp/dist --no-deps --no-build-isolation`
   ——把 venv 的 setuptools 借给系统 python。`--no-build-isolation` 是必须的，否则 pip 会去建隔离环境并联网拉 setuptools。
 - 历史记录（已过期）：上一会话曾出现非 `run_code` 工具全部不可用、通道坏死，重启后已恢复。
+
+## 4. 审计发现的不足（2026-10-25，尚未处理）
+
+和第 2 节的区别：第 2 节是代码内部的技术债，这里是安装、CI、数据模型层面的窟窿。每条都写了「真出事时怎么修」，免得下次重新推导一遍。
+
+### 4.1 安装与分发
+
+- [ ] **`pip install --target` / zipapp 装完后找不到数据**：`_installed_root()`（`src/ocrmath/cli.py:95-114`）只查 `sysconfig` 的 `data`/`purelib`/`platlib` 三个 scheme 加 `sys.prefix`；`--target` 装到任意目录时不在这三处，于是回落到当前目录，最后报的是 `src/ocrmath/store.py:51`「找不到知识点词表 {path}：请确认 --root 指向项目根目录」或 `src/ocrmath/cli.py:121-124`「没有找到任何 .yaml：请确认 --root 指向项目根目录」——两句话都把锅甩给用户的 `--root`，真实原因却是「这种安装布局不认识」。
+  - 修法：`_installed_root()` 补 `importlib.metadata.distribution("ocrmath").files()` 推导，或以 `Path(__file__)` 往上找 `share/ocrmath`；报错文案拆成「目录里确实没有题库」与「安装布局不受支持，请用 pip install 或显式给 --root」两种。
+  - 为什么现在不改：`pip install` 正常装已验证可用（装进干净 venv 后从别的目录跑 `list` 正常），`--target` 是边缘用法。
+- [ ] **没有声明开发依赖组**：`pyproject.toml` 里没有 `[project.optional-dependencies] dev`。测试只用标准库 `unittest`，所以不缺依赖，但「新机器上怎么把环境跑起来」只写在 README 里，没有一行可执行的安装命令。
+
+### 4.2 CI 与工具链
+
+- [ ] **CI 只在 ubuntu-latest 上跑**：`.github/workflows/quick.yml:23` 与 `.github/workflows/latex.yml:20` 都是 `runs-on: ubuntu-latest`，而项目实际在 Windows 上开发。`ctexart` 字体、路径分隔符、CRLF 这些平台差异 CI 一点都测不到。
+  - 权衡：给 `quick` 加 windows-latest job 便宜（只要 Python 依赖）；`latex` 在 Windows runner 上装 TeX Live 很慢，不值得。
+- [ ] **没有 lint / 格式化配置**：`pyproject.toml` 里只有 `[tool.setuptools.*]`，没有 `[tool.ruff]` 之类。代码风格现在靠人盯。
+- [ ] **慢速档没覆盖 `pack` 的版式**：`scripts/ci_latex_gate.py` 对五套模板都传 `--group-by tag`，而 `pack` 走的是 `group_by="none"`。页数回归由 `scripts/ci_pack_check.py` 兜着，但 Overfull / Missing character 的扫描只覆盖了「按知识点分组」这一条路径。
+
+### 4.3 数据模型
+
+- [ ] **题库 YAML 没有 `schema_version`**：以后加 `parts` / `answer_lines` 这类字段时没有迁移钩子，也没法对老文件走兼容分支。现在 9 道题全是手写的，加字段等于「全体同时升级」，暂时不痛。
+
+### 4.4 未验证的规模
+
+- [ ] **没做过题库规模测试**：`src/ocrmath/cli.py:118` 的 `_load()` 每次全量读 `data/problems/*.yaml`，没有缓存。9 道题无感，上千题时 `list` / `pack` 的启动开销没测过。
+
+### 4.5 文档口径
+
+- [ ] **历史文档里的数字会继续脱节**：`AUDIT.md` 是批次台账（测试数、行数都是当时的快照），`README.md` 里「本项目在 3.14 上验证」也要等 `quick.yml` 的 3.10 job 结果。处理原则是「历史文档不改写，变化只追加到 `CHANGELOG.md`」——这条原则目前只在对话里说过，没写进文档，下次容易有人去把 `AUDIT.md` 的数字刷一遍。
