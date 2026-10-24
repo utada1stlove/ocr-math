@@ -5,7 +5,7 @@
 按优先级从上往下。做完一项把 `[ ]` 改 `[x]` 并补一行「怎么验的」，
 批量的历史改动记在 `CHANGELOG.md`，问题台账在 `AUDIT.md`。
 
-最后更新：2026-10-24
+最后更新：2026-10-25
 
 ---
 
@@ -48,6 +48,13 @@ Debian TeX 包清单够用，详见 `CHANGELOG.md`。以后改模板或加宏包
   验证：`tests/test_store.py::EncodingTests`、`tests/test_cli.py::AddEncodingTests`。
 - [x] **慢速档按文档写相对 `PYTHONPATH` 会假红**：`scripts/gate.py` 与 `scripts/ci_latex_gate.py` 的 `_env()` 现在把每项解析成绝对路径。
   验证：`PYTHONPATH="src;.venv/Lib/site-packages" python scripts/gate.py slow` 全绿。
+- [x] **CLI 没有 `--version`**：已加顶层 `--version`，取值来自 `src/ocrmath/__init__.py` 的 `__version__`。
+  验证：`tests/test_cli.py::VersionTests`。
+- [x] **`pyproject.toml` 缺发布元数据**：补了 `readme` / `license` / `license-files` / `authors` / `[project.urls]`，`setuptools>=68` → `>=77`。
+  验证：wheel 的 `METADATA` 里有 `License-Expression: GPL-3.0-only` 与三条 `Project-URL`。
+- [x] **`--seed` 没有可复现测试**：`tests/test_select.py::SeedTests` 守着「同 seed 同序、只重排不丢题」。
+- [x] **`add` 查重复 id 是 O(n²)**：改成一次 `Counter`；顺带补了「一批内 id 撞车整批拒写」的测试。
+  验证：`tests/test_cli.py::AddDuplicateTests`。
 - [ ] **`_as_list` 对 YAML list 也不切分的历史包袱**：现在 `tags`/`pitfalls` 已开 `split_items=True`，但 `steps` 仍按 `\n` 切、`choices` 按 `[;,；\n]` 切。这套规则散落在 `from_mapping` 的调用点上，加字段时容易漏。考虑集中成一张「字段 → 分隔符」表。
 - [ ] **`EXPECTED_PAGES` 写死在脚本里**：改题库就要手改。可选做法是把它挪到 `tests/fixtures/` 旁边的 json，或改成「页数变化超过 ±20% 才报警」。**暂时不改**——写死更有约束力，等真被它烦到再说。
 - [ ] **`quick.yml` 的 Python 3.10 没在本地实测**：本机只有 3.14.7。已扫过全仓无 3.11+ 专属语法（无 `tomllib` / `Self` / `StrEnum` / `match` / `except*`），但 CI 会是第一次真跑 3.10。

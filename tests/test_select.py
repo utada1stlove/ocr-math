@@ -91,5 +91,30 @@ class TagTests(unittest.TestCase):
         self.assertEqual([p.id for p in all_tags], ["a-3", "a-4"])
 
 
+class SeedTests(unittest.TestCase):
+    """``--seed`` 要可复现：同一个种子两次跑必须给出同样的题序。"""
+
+    def test_same_seed_gives_same_order(self) -> None:
+        first = [p.id for p in select_problems(_bank(), SelectOptions(seed=42))]
+        second = [p.id for p in select_problems(_bank(), SelectOptions(seed=42))]
+        self.assertEqual(first, second)
+
+    def test_seed_only_reorders_never_drops(self) -> None:
+        chosen = [p.id for p in select_problems(_bank(), SelectOptions(seed=42))]
+        self.assertEqual(sorted(chosen), sorted(p.id for p in _bank()))
+
+    def test_no_seed_keeps_bank_order(self) -> None:
+        chosen = [p.id for p in select_problems(_bank(), SelectOptions())]
+        self.assertEqual(chosen, [p.id for p in _bank()])
+
+    def test_different_seeds_can_differ(self) -> None:
+        # 4 道题只有 24 种排列，6 个种子全撞同一序的概率约 1/24^5，可以忽略
+        orders = {
+            tuple(p.id for p in select_problems(_bank(), SelectOptions(seed=seed)))
+            for seed in range(6)
+        }
+        self.assertGreater(len(orders), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

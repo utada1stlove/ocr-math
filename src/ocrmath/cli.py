@@ -11,11 +11,13 @@ import argparse
 import json
 import re
 import sys
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
 import yaml
 
+from . import __version__
 from .build import BuildResult, build
 from .ingest import get_engine
 from .render import RenderConfig, render
@@ -460,7 +462,9 @@ def cmd_add(args: argparse.Namespace, root: Path) -> int:
     if conflicts:
         print(f"错误：这些 id 已存在于 {target}：{'、'.join(conflicts)}", file=sys.stderr)
         return 1
-    dupes = sorted({p.id for p in parsed if [q.id for q in parsed].count(p.id) > 1})
+    # 先数一遍再筛，别在推导式里对每道题重建一次 id 列表（那是 O(n^2)）
+    id_counts = Counter(p.id for p in parsed)
+    dupes = sorted(pid for pid, count in id_counts.items() if count > 1)
     if dupes:
         print(f"错误：待写入的题目里 id 自身重复：{'、'.join(dupes)}", file=sys.stderr)
         return 1
@@ -564,6 +568,8 @@ def _add_selection(p: argparse.ArgumentParser) -> None:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ocrmath", description="数学试题 -> LaTeX -> PDF")
+    # 版本号只有一处事实来源（src/ocrmath/__init__.py），这里不再重复写字符串
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     def add_root(p: argparse.ArgumentParser) -> None:

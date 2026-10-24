@@ -1,13 +1,22 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ocrmath"
 version = "0.1.0"
 description = "数学试题识别与 LaTeX/PDF 排版流水线"
+readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+authors = [{ name = "lacusclyne", email = "utada1stlove@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = ["PyYAML>=6.0", "Jinja2>=3.1"]
+
+[project.urls]
+Homepage = "https://github.com/utada1stlove/ocr-math"
+Repository = "https://github.com/utada1stlove/ocr-math"
+Issues = "https://github.com/utada1stlove/ocr-math/issues"
 
 [project.optional-dependencies]
 pdf-preview = ["pypdfium2>=4.0"]

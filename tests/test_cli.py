@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from ocrmath import cli, render  # noqa: E402
+from ocrmath import __version__, cli, render  # noqa: E402
 from support import TempProject  # noqa: E402
 
 
@@ -180,6 +180,35 @@ class AddEncodingTests(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertIn("UTF-8", err)
             self.assertNotIn("codec", err)
+
+
+class VersionTests(unittest.TestCase):
+    def test_version_flag_prints_package_version(self) -> None:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as caught:
+            cli.main(["--version"])
+        self.assertEqual(caught.exception.code, 0)
+        self.assertIn(__version__, out.getvalue())
+
+
+class AddDuplicateTests(unittest.TestCase):
+    """一批里 id 自己撞车：整批拒写，不能写进去一半。"""
+
+    def test_duplicate_ids_inside_batch_are_rejected(self) -> None:
+        with TempProject() as project:
+            src = project.path / "dup.yaml"
+            src.write_text(
+                """- id: dup-1
+  statement: 甲题。
+- id: dup-1
+  statement: 乙题。
+""",
+                encoding="utf-8",
+            )
+            code, _out, err = _run(["add", "--root", str(project.path), str(src)])
+            self.assertEqual(code, 1)
+            self.assertIn("dup-1", err)
+            self.assertFalse((project.path / "data" / "problems" / "inbox.yaml").exists())
 
 
 if __name__ == "__main__":

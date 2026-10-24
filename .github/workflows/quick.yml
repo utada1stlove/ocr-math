@@ -1,7 +1,7 @@
 # 快速档：不装 TeX 也能跑，每次 push / PR 都挡一道。
 #
 # 覆盖 AUDIT.md 里绝大多数逻辑性修复：
-#   - 118 个单测（schema / select / store / cli / build）
+#   - 124 个单测（schema / select / store / cli / build）
 #   - validate --strict（含 answer 的 LaTeX 体检、全角逗号、题解缺失）
 #   - 五套模板的 Jinja 渲染冒烟（StrictUndefined 下少一个变量就红）
 #

@@ -6,6 +6,31 @@
 
 ---
 
+## 2026-10-25 · 发布元数据与 CLI 打磨
+
+提交：`chore: --version、发布元数据、--seed 可复现测试、重复 id 检查去掉 O(n²)`
+
+### 为什么
+
+上一批修的是「会崩、会假红」的硬缺陷；这一批是发布前的门面：`pip install` 之后 `pip show` 里没有主页和许可证、`ocrmath --version` 不存在、`--seed` 号称可复现却没有测试守着、`add` 查重复 id 是 O(n²)。
+
+### 改了什么
+
+1. `pyproject.toml`：补 `readme` / `license` / `license-files` / `authors` / `[project.urls]`，`setuptools>=68` → `>=77`（PEP 639 的 SPDX 字符串写法要求）。许可证取 `GPL-3.0-only`——仓库里的 `LICENSE` 是 GPL v3 全文，没有 "or later" 声明。
+   验证：wheel 的 `METADATA` 里有 `License-Expression: GPL-3.0-only`、三条 `Project-URL`、`Description-Content-Type: text/markdown`（README 正文被嵌进 long description），`licenses/LICENSE` 随包分发。
+2. `src/ocrmath/cli.py`：顶层 `--version`，取值来自 `src/ocrmath/__init__.py` 的 `__version__`——版本号只有一处事实来源，不在 argparse 里重复写字符串。
+   验证：`tests/test_cli.py::VersionTests`；`python -m ocrmath --version` → `ocrmath 0.1.0`。
+3. `src/ocrmath/cli.py` 的 `cmd_add()`：查重复 id 从 `[q.id for q in parsed].count(p.id)` 改成一次 `Counter`，去掉 O(n²)。
+   验证：`tests/test_cli.py::AddDuplicateTests`——一批里 id 自己撞车时整批拒写，`inbox.yaml` 不落地。
+4. `tests/test_select.py::SeedTests`：同 seed 同序、只重排不丢题、无 seed 保持原序、不同 seed 能给出不同序。
+   验证：`python -m unittest discover -s tests` → 124 tests OK（原 118 + 新增 6）。
+
+### 注意
+
+`setuptools>=77` 只抬高构建环境的要求，不改运行期依赖；`requires-python` 仍是 `>=3.10`。
+
+---
+
 ## 2026-10-24 · CI 验证：`latex` workflow 在真 runner 上跑通
 
 提交：`docs: latex workflow 已在 GitHub runner 上验证通过`
