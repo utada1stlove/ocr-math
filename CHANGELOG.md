@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-10-24 · CI 验证：`latex` workflow 在真 runner 上跑通
+
+提交：`docs: latex workflow 已在 GitHub runner 上验证通过`
+
+### 为什么
+
+`latex.yml` 的 Debian TeX 包清单是按依赖关系推出来的——本机是 TeX Live 2026 全量安装，模拟不了 Ubuntu runner 的最小包布局，所以这条从没在真 GitHub runner 上跑过，是 `TODO.md` 里唯一「只能人做」的阻塞项。
+
+### 结果
+
+- 手动 `workflow_dispatch` 一次，**通过**：xelatex 编译、五套模板渲染、页数检查、Overfull / Missing character 扫描全绿。
+- 已知隐患没有复现：`texlive-latex-extra` 不依赖 `texlive-pictures`，而 `tcolorbox` 的 `skins` 库需要 pgf/tikz，此前补的包是对的，说明「按依赖推包名 + 报错回填」这条路子可用。
+
+### 文档
+
+- `TODO.md` 第 0 节「阻塞项」清空。
+- `PLAN.md` 第 7 条的「遗留风险」改为「已验证」。
+
+---
+
 ## 2026-10-24 · 本地审计修复：gate 路径、GBK 报错、build 测试
 
 提交：`fix: 慢速档假红 + 非 UTF-8 题库报错 + build.py 补测试`

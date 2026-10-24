@@ -11,12 +11,8 @@
 
 ## 0. 阻塞项：需要人来做，我无法代劳
 
-- [!] **在 GitHub 上手动触发一次 `latex` workflow**（Actions → latex → Run workflow）。
-  这是唯一未验证的环节：`latex.yml` 的 Debian TeX 包清单是按依赖关系推的，
-  从没在真 GitHub runner 上跑过，本机是 TeX Live 2026 全量安装，模拟不了 Ubuntu 的最小包布局。
-  - 绿色：CI 才算真正完成，把这个文件里这条删掉。
-  - 红色：workflow 会把 `out/.build/**/main.log` 传成 artifact，把报错贴回来，我补包名。
-  - 已知隐患：`texlive-latex-extra` 不依赖 `texlive-pictures`，而 `tcolorbox` 的 `skins` 库需要 pgf/tikz。这个已经补上了，但可能还有类似的。
+（暂无。原先唯一的一条「在 GitHub 上手动触发一次 `latex` workflow」已于 2026-10-24 在真 runner 上跑通，
+Debian TeX 包清单够用，详见 `CHANGELOG.md`。以后改模板或加宏包，仍要留意 runner 上可能缺包。）
 
 ## 1. 功能待办（按优先级）
 
