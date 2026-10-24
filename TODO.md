@@ -65,4 +65,7 @@ Debian TeX 包清单够用，详见 `CHANGELOG.md`。以后改模板或加宏包
 
 - [!] **`pwsh` 工具起不来**：报 `PTY shell exited during startup`。本机一切命令改走 bash（`ops_bash`），路径写 `/d/workspace/ocr-math` 这种形式。中文输出需加 `PYTHONIOENCODING=utf-8`，否则 bash 侧按 GBK 解码成乱码。
 - [!] **`ops_bash` 偶发 `Auto review of tool failed`**：报 `Unexpected token '<', "<｜｜DSML｜｜" ...`，命令体不会被执行。**重试同一条命令即可成功**，不是命令本身有问题，别去改命令。
+- **打 wheel 要绕一下**：本机 `.venv` 里没有 pip（`No module named pip`），系统 `C:\Python314` 有 pip 26.2.1 但没有 setuptools。验证发布元数据时用的是
+  `PYTHONPATH=".venv/Lib/site-packages" python -m pip wheel . -w .tmp/dist --no-deps --no-build-isolation`
+  ——把 venv 的 setuptools 借给系统 python。`--no-build-isolation` 是必须的，否则 pip 会去建隔离环境并联网拉 setuptools。
 - 历史记录（已过期）：上一会话曾出现非 `run_code` 工具全部不可用、通道坏死，重启后已恢复。
