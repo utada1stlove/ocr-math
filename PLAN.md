@@ -1,6 +1,6 @@
 # 项目计划与状态（给下一次会话的自己）
 
-最后更新：2026-10-20。这份文件是“下一步做什么、为什么这么做”的索引；具体用法看 `README.md`。
+最后更新：2026-10-25。这份文件是“下一步做什么、为什么这么做”的索引；具体用法看 `README.md`。
 
 ## 一句话目标
 
@@ -13,9 +13,9 @@
 - 数据层：`data/problems/*.yaml`（9 道示例题：fx-001/002/003、tri-001、seq-001、geo-001/002、prob-001、ineq-001），字段 `statement/choices/answer/solution/steps/pitfalls/hint/teaching/tags/difficulty/workspace_mm/source/figures/figure_width`，中英文键名都认；另有 `extra` 兜住本工具不认识的键（`ocr_from`、教研备注等），`add` 追加写回时原样保留。
 - 词表：`data/taxonomy.yaml`（7 个章节、22 个知识点），`--group-by tag` 按词表顺序分组。
 - 渲染：5 个模板 `templates/{student,answers,teacher,sheet,card}.tex.j2` + 公共 `_preamble.tex.j2` + `_answer_block.tex.j2`（sheet/card 答案页的分步解析宏）+ `_figures.tex.j2`（插图宏）；公共导言区已加载 `ctexart/amsmath/amssymb/graphicx/tcolorbox(含 breakable)/needspace/fancyhdr/enumitem`。
-- CLI：`python -m ocrmath {pack,build,list,validate,add,ocr}`；`pack` 一次出三份并写 `out/<name>/manifest.json`。
+- CLI：`python -m ocrmath {pack,build,list,validate,add,ocr}`，顶层另有 `--version`（取自 `src/ocrmath/__init__.py` 的 `__version__`，只有一处事实来源）；`pack` 一次出三份并写 `out/<name>/manifest.json`。
 - OCR：`ingest/local.py`（pix2tex 公式级）+ `ingest/cloud.py`（占位）。pix2tex 模型权重已下载到 `.venv/Lib/site-packages/pix2tex/model/checkpoints`，离线可用。
-- 质量：`python -m ocrmath validate --strict` 0 错 0 警；`python -m unittest discover -s tests` **102 个测试全过**；`pack --strict` 编译通过（student 2 页 / answers 3 页 / teacher 4 页）；`python scripts/gate.py all` 一条命令跑完两档（含插图 fixture 的真编译）。
+- 质量：`python -m ocrmath validate --strict` 0 错 0 警；`python -m unittest discover -s tests` **124 个测试全过**；`pack --strict` 编译通过（student 2 页 / answers 3 页 / teacher 4 页）；`python scripts/gate.py all` 一条命令跑完两档（含插图 fixture 的真编译）。
 - 审计修复（2026-10-20）：`AUDIT.md` 里 14 条问题 + 1 条工程补充已全部处理，逐条对照见 `AUDIT.md` 第一之二节和第九节。CI 也已落地（同日），审计项全部清零。
 
 ## 关键设计决定（别改回去）

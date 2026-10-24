@@ -74,6 +74,9 @@ python -m ocrmath pack --name demo --title "高一数学 周末练习" --skip an
 # 看看题库里有什么
 python -m ocrmath list
 
+# 看版本
+python -m ocrmath --version
+
 # 出习题册（题目 + 每题 30mm 草稿留白，答案统一放最后）
 python -m ocrmath build --title "高一数学 周末练习" --group-by tag --answers end --gap 8 --workspace 30
 

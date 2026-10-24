@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-10-25 · 文档同步：测试数、TODO 第 4 节
+
+提交：`docs: TODO 新增第 4 节 审计发现的不足`
+
+### 为什么
+
+第 3 组打磨把测试从 118 带到 124，但 `PLAN.md` 的「质量」一行还写着 102，`quick.yml` 的注释也已经过时；另外审计里发现、但这一轮不打算处理的一批窟窿（安装布局、CI 平台覆盖、数据模型缺 `schema_version`、规模未测）只散在对话里，没落到文档。文档一旦和现状脱节，下次判断「改得安不安全」就没有依据。
+
+### 改了什么
+
+1. `TODO.md` 新增第 4 节「审计发现的不足（2026-10-25，尚未处理）」：分安装与分发 / CI 与工具链 / 数据模型 / 未验证的规模 / 文档口径五组，每条都带「修法」和「为什么现在不改」。
+2. `TODO.md` 第 3 节补一条环境笔记：本机 `.venv` 没有 pip、系统 python 没有 setuptools，打 wheel 要 `PYTHONPATH=".venv/Lib/site-packages" python -m pip wheel . -w .tmp/dist --no-deps --no-build-isolation`。
+3. `PLAN.md` 的「质量」一行 102 → 124 个测试，CLI 一行补记顶层 `--version`。
+4. 记下文档口径：历史文档（`AUDIT.md`）不改写，变化只追加到本文件。
+
+### 验证
+
+`python -m unittest discover -s tests` → 124 tests OK；`python scripts/gate.py all` 全绿；`git status` 干净，本地与 `origin/main` 一致。
+
+---
+
 ## 2026-10-25 · 发布元数据与 CLI 打磨
 
 提交：`chore: --version、发布元数据、--seed 可复现测试、重复 id 检查去掉 O(n²)`
