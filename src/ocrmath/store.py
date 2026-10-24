@@ -89,7 +89,18 @@ def load_problems(paths: Iterable[Path]) -> tuple[list[Problem], list[Issue]]:
 
     for path in paths:
         try:
-            raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            issues.append(
+                Issue(
+                    "error",
+                    "文件不是 UTF-8 编码（可能是记事本另存的 GBK/ANSI），请另存为 UTF-8 后重试",
+                    problem_id=str(path.name),
+                )
+            )
+            continue
+        try:
+            raw = yaml.safe_load(text)
         except yaml.YAMLError as exc:
             issues.append(Issue("error", f"YAML 解析失败：{exc}", problem_id=str(path.name)))
             continue

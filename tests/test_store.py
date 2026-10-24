@@ -111,5 +111,23 @@ class LoadProblemsTests(unittest.TestCase):
             self.assertEqual(names, ["a.yaml", "b.yaml"])
 
 
+class EncodingTests(unittest.TestCase):
+    """GBK/ANSI 保存的题库文件要提示「不是 UTF-8」，而不是抛 codec 原文。"""
+
+    def test_gbk_file_reports_encoding_not_codec_error(self) -> None:
+        with TempProject() as project:
+            target = project.path / "data" / "problems" / "gbk.yaml"
+            target.write_bytes(
+                "- id: gbk-001\n  statement: 中文题干\n  answer: $1$\n".encode("gbk")
+            )
+            problems, issues = load_problems([target])
+            self.assertEqual(problems, [])
+            errors = [i for i in issues if i.level == "error"]
+            self.assertEqual(len(errors), 1)
+            self.assertEqual(errors[0].problem_id, "gbk.yaml")
+            self.assertIn("UTF-8", errors[0].message)
+            self.assertNotIn("codec", errors[0].message)
+
+
 if __name__ == "__main__":
     unittest.main()

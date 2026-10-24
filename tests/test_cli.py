@@ -169,5 +169,18 @@ class RenderEstimateTests(unittest.TestCase):
         self.assertGreaterEqual(render._line_count(text), 2)
 
 
+class AddEncodingTests(unittest.TestCase):
+    """add 读到 GBK 文件要报人话，别让 UnicodeDecodeError 漏到顶层。"""
+
+    def test_gbk_source_reports_encoding_error(self) -> None:
+        with TempProject() as project:
+            src = project.path / "gbk-src.yaml"
+            src.write_bytes("- id: gbk-002\n  statement: 中文\n  answer: $1$\n".encode("gbk"))
+            code, _out, err = _run(["add", "--root", str(project.path), str(src)])
+            self.assertEqual(code, 2)
+            self.assertIn("UTF-8", err)
+            self.assertNotIn("codec", err)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -5,7 +5,7 @@
 按优先级从上往下。做完一项把 `[ ]` 改 `[x]` 并补一行「怎么验的」，
 批量的历史改动记在 `CHANGELOG.md`，问题台账在 `AUDIT.md`。
 
-最后更新：2026-10-20
+最后更新：2026-10-24
 
 ---
 
@@ -46,15 +46,20 @@
 
 ## 2. 技术债 / 已知限制（不急着做，但要记着）
 
+- [x] **`build.py` 零测试**：已补 `tests/test_build.py`（14 个用例，mock 掉 latexmk 与 subprocess）。
+  验证：`python -m unittest discover -s tests`。
+- [x] **非 UTF-8 题库文件报错不友好**：现在报「文件不是 UTF-8 编码（可能是记事本另存的 GBK/ANSI），请另存为 UTF-8 后重试」并带文件名。
+  验证：`tests/test_store.py::EncodingTests`、`tests/test_cli.py::AddEncodingTests`。
+- [x] **慢速档按文档写相对 `PYTHONPATH` 会假红**：`scripts/gate.py` 与 `scripts/ci_latex_gate.py` 的 `_env()` 现在把每项解析成绝对路径。
+  验证：`PYTHONPATH="src;.venv/Lib/site-packages" python scripts/gate.py slow` 全绿。
 - [ ] **`_as_list` 对 YAML list 也不切分的历史包袱**：现在 `tags`/`pitfalls` 已开 `split_items=True`，但 `steps` 仍按 `\n` 切、`choices` 按 `[;,；\n]` 切。这套规则散落在 `from_mapping` 的调用点上，加字段时容易漏。考虑集中成一张「字段 → 分隔符」表。
 - [ ] **`EXPECTED_PAGES` 写死在脚本里**：改题库就要手改。可选做法是把它挪到 `tests/fixtures/` 旁边的 json，或改成「页数变化超过 ±20% 才报警」。**暂时不改**——写死更有约束力，等真被它烦到再说。
 - [ ] **`quick.yml` 的 Python 3.10 没在本地实测**：本机只有 3.14.7。已扫过全仓无 3.11+ 专属语法（无 `tomllib` / `Self` / `StrEnum` / `match` / `except*`），但 CI 会是第一次真跑 3.10。
 - [ ] **插图高度按正方形估算**：`_figure_height_mm` 不知道真实宽高比，一律按「正文宽 × 比例」当正方形，偏大。宁可多留白也不让图被切到下一页，所以方向是对的；如果真遇到「图很扁但留了一整页空白」，再考虑引入 Pillow 读尺寸（会多一个依赖，权衡后再定）。
 - [ ] **`.tmp/pip-*` 20 个残留目录删不掉**：受 Windows ACL 影响，已 gitignore，不影响运行。已知问题，别纠缠。
 
-## 3. 本会话的未决工具问题
+## 3. 环境与工具的已知问题
 
-- [!] **非 `run_code` 的 SDK 工具全部不可用**：`pwsh` / `glob` / `read` / `todo_write` / `taskboard_*` / `get_goal` / `skill` / `working_directory` 一律返回 `tool call aborted before dispatch` 或 `Auto review of tool ... failed`。`run_code` 本身正常。
-  - 起因：一次带 `danger-full-access` 的 `git push` 超时（120s 执行上限）后通道坏死，此后未恢复。
-  - 影响：本会话所有文件读写、git、python 调用都改走 `run_code` 里的 `node:child_process` + `node:fs/promises` 完成，功能上没缺口，只是绕。
-  - 建议：重启一次会话/宿主。重启后先验证 `read`、`pwsh` 两件工具是否恢复。
+- [!] **`pwsh` 工具起不来**：报 `PTY shell exited during startup`。本机一切命令改走 bash（`ops_bash`），路径写 `/d/workspace/ocr-math` 这种形式。中文输出需加 `PYTHONIOENCODING=utf-8`，否则 bash 侧按 GBK 解码成乱码。
+- [!] **`ops_bash` 偶发 `Auto review of tool failed`**：报 `Unexpected token '<', "<｜｜DSML｜｜" ...`，命令体不会被执行。**重试同一条命令即可成功**，不是命令本身有问题，别去改命令。
+- 历史记录（已过期）：上一会话曾出现非 `run_code` 工具全部不可用、通道坏死，重启后已恢复。

@@ -421,7 +421,13 @@ def cmd_add(args: argparse.Namespace, root: Path) -> int:
     path = Path(args.file)
     if not path.is_absolute():
         path = root / path
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise ValueError(
+            f"{path} 不是 UTF-8 编码（可能是记事本另存的 GBK/ANSI），请另存为 UTF-8 后重试"
+        ) from None
+    raw = yaml.safe_load(text)
     if isinstance(raw, dict) and "problems" in raw:
         raw = raw["problems"]
     if isinstance(raw, dict):

@@ -41,6 +41,8 @@ python .tmp\preview.py out\demo\student.pdf out\preview\demo-student   # PDF →
 
 `--root` 现在可以不写：会从当前目录向上找 `data/taxonomy.yaml`，所以在 `src/`、`out/` 里跑也一样；换到别的机器上直接用 `scripts/build.ps1 <参数>` 也行（它自己处理 `PYTHONPATH` 和 `TMP`）。
 
+> 相对路径的 `PYTHONPATH`（上面那行就是）只对**当前目录**成立。`scripts/gate.py` 与 `scripts/ci_latex_gate.py` 的 `_env()` 会把每一项 `Path.resolve()` 成绝对路径再交给子进程，所以在仓库根目录跑 gate 用相对写法也安全（插图 fixture 会把 cwd 换到临时目录，相对项在那边会失效，症状是子进程 `ModuleNotFoundError: No module named 'yaml'`）。自己写脚本时会 `cd` 到别处的，同样要先绝对化。
+
 > **待办清单已独立到 `TODO.md`**（含「只能人工做」的阻塞项与技术债）。这一节只保留路线图视角的说明；具体勾选进度看 `TODO.md`，别再往这里加条目。
 
 ## 下一步（按优先级）

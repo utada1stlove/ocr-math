@@ -8,9 +8,15 @@ __pycache__/
 
 # 产物
 out/
+dist/
+build/
+*.egg-info/
 
 # 会话附件副本，不入库
 ocr-math.txt
+
+# AgentTeams 会话状态（team.json / inbox / 任务产物）
+.agent-teams/
 
 # LaTeX 中间文件（正常都在 out/.build 下，这里防手滑）
 *.aux

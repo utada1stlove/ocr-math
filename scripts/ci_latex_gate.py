@@ -180,9 +180,30 @@ def _check_figures(repo: Path, allow_overfull: bool) -> list[str]:
     return failures
 
 
+def _abs_pythonpath(value: str) -> str:
+    """把 PYTHONPATH 里每一项都转成绝对路径。
+
+    子进程的 cwd 不一定和调用方相同（插图 fixture 在临时目录里跑），相对项一离开
+    原目录就指向不存在的路径，症状是子进程报 No module named 'yaml'——看起来像
+    代码坏了，其实是路径失效。去重并保留顺序，避免 PYTHONPATH 越滚越长。
+    """
+    entries: list[str] = []
+    for part in value.split(os.pathsep):
+        part = part.strip()
+        if not part:
+            continue
+        resolved = str(Path(part).resolve())
+        if resolved not in entries:
+            entries.append(resolved)
+    return os.pathsep.join(entries)
+
+
 def _env(repo: Path) -> dict[str, str]:
     env = dict(os.environ)
-    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(repo / "src"), env.get("PYTHONPATH", "")]))
+    env["PYTHONPATH"] = _abs_pythonpath(
+        os.pathsep.join(filter(None, [str(repo / "src"), env.get("PYTHONPATH", "")]))
+    )
+    env.setdefault("PYTHONIOENCODING", "utf-8")
     return env
 
 

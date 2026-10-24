@@ -6,6 +6,30 @@
 
 ---
 
+## 2026-10-24 · 本地审计修复：gate 路径、GBK 报错、build 测试
+
+提交：`fix: 慢速档假红 + 非 UTF-8 题库报错 + build.py 补测试`
+
+### 改了什么、为什么
+
+1. `scripts/gate.py` / `scripts/ci_latex_gate.py`：新增 `_abs_pythonpath()`，`_env()` 把 `PYTHONPATH` 每一项 `Path.resolve()` 成绝对路径并去重。
+   - 为什么：`PLAN.md` 教用户写相对路径 `PYTHONPATH="src;.venv/Lib/site-packages"`，而插图 fixture 的子进程 cwd 是 `Temp/figcheck-*`，相对项一离开原目录就失效，症状是子进程 `ModuleNotFoundError: No module named 'yaml'`，在 gate 里表现为「插图 sheet: build 退出码 1」等 5 项**假红**。
+   - 验证：`PYTHONPATH="src;.venv/Lib/site-packages" python scripts/gate.py slow` → 慢速档全部通过。
+2. `src/ocrmath/store.py` 的 `load_problems()` 与 `src/ocrmath/cli.py` 的 `cmd_add()`：`read_text(encoding="utf-8")` 的 `UnicodeDecodeError` 单独捕获，报「文件不是 UTF-8 编码（可能是记事本另存的 GBK/ANSI），请另存为 UTF-8 后重试」，并带文件名。
+   - 为什么：GBK/ANSI 题库会让 `UnicodeDecodeError` 漏到 `main()` 的兜底分支，用户只看到 `'utf-8' codec can't decode byte 0xd6 in position 41: invalid continuation byte`——既不知道是哪个文件，也不知道该怎么办。
+   - 验证：新增 `tests/test_store.py::EncodingTests`、`tests/test_cli.py::AddEncodingTests`。
+3. 新增 `tests/test_build.py`（14 个用例）：`src/ocrmath/build.py` 原先 118 行零测试。用 `mock.patch` 替换 `shutil.which` 与 `subprocess.run`，不依赖真 LaTeX，覆盖：latexmk 缺失、成功路径（拷 PDF + 解析页数）、`file:line:` 与 `! ` 两种报错格式、最多 5 条、解析不出时的退出码兜底、报成功但无 PDF、缺图、`TimeoutExpired`、`_tail` 截断、`BuildResult` 默认值互不共享。
+4. `.github/workflows/quick.yml`：注释里的「67 个单测」改成 118，并把 `build` 加进覆盖清单（原数字是历史批次遗留的漂移）。
+5. `.gitignore`：加 `.agent-teams/`（AgentTeams 会话状态）、`dist/`、`build/`、`*.egg-info/`；删掉根目录的空目录 `probe4-fyuzpwe0/`。
+
+### 验证
+
+- `python -m unittest discover -s tests` → 118 tests OK（原 102 + 新增 16）。
+- `python scripts/gate.py slow` → 慢速档全部通过（含 pack 页数 2/3/4）。
+- `python -m ocrmath validate --strict` → 9 题，0 错 0 警。
+
+---
+
 ## 2026-10-20 · 文档：待办清单独立成 `TODO.md`
 
 提交：`docs: 新增 TODO.md，待办与只能人工做的阻塞项集中一处`
